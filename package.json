@@ -8,7 +8,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "build:mac": "electron-builder --mac --universal --publish never"
+    "build:mac": "electron-builder --mac --publish never"
   },
   "build": {
     "appId": "za.co.lennoxdigital.roomnote",
@@ -32,7 +32,11 @@
       "identity": null,
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
-      "target": [{ "target": "dmg", "arch": ["universal"] }]
+      "x64ArchFiles": "**/bare-fs/**",
+      "target": [
+        { "target": "dmg", "arch": ["x64"] },
+        { "target": "dmg", "arch": ["arm64"] }
+      ]
     },
     "dmg": {
       "title": "${productName} ${version}",
