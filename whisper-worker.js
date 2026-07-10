@@ -1,16 +1,14 @@
 'use strict';
 // Runs in Node.js worker_threads context.
-// @xenova/transformers will try onnxruntime-node first; if ABI mismatch with
-// Electron's embedded Node, it automatically falls back to onnxruntime-web (WASM).
-// That fallback is exactly what we want — universal cross-arch offline transcription.
+// Whisper model is bundled inside the app — no internet required at any point.
 
-const { parentPort, workerData } = require('worker_threads');
+const { parentPort } = require('worker_threads');
+const path = require('path');
 
-// Point Hugging Face cache to app's userData so models stay with the app
-if (workerData && workerData.cacheDir) {
-  process.env.HF_HOME = workerData.cacheDir;
-  process.env.HUGGINGFACE_HUB_CACHE = workerData.cacheDir;
-}
+// Point transformers.js at the bundled model directory and disable all remote fetching
+const { env } = require('@xenova/transformers');
+env.localModelPath = path.join(__dirname, 'models');
+env.allowRemoteModels = false;
 
 let transcriber = null;
 

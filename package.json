@@ -17,10 +17,8 @@
     "asar": false,
     "directories": { "output": "dist", "buildResources": "build" },
     "files": [
-      "main.js",
-      "preload.js",
-      "index.html",
-      "whisper-worker.js",
+      "main.js", "preload.js", "index.html", "whisper-worker.js",
+      "models/**/*",
       "node_modules/**/*",
       "!node_modules/.cache/**",
       "!node_modules/**/*.md",

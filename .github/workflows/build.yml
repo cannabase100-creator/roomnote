@@ -8,7 +8,7 @@ on:
 jobs:
   build-mac:
     runs-on: macos-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
@@ -23,7 +23,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build universal DMG
+      - name: Download Whisper model (bundle into app — offline use)
+        run: |
+          BASE="https://huggingface.co/Xenova/whisper-small.en/resolve/main"
+          mkdir -p models/Xenova/whisper-small.en/onnx
+          curl -fL --retry 3 "$BASE/config.json"              -o models/Xenova/whisper-small.en/config.json
+          curl -fL --retry 3 "$BASE/generation_config.json"   -o models/Xenova/whisper-small.en/generation_config.json
+          curl -fL --retry 3 "$BASE/tokenizer.json"           -o models/Xenova/whisper-small.en/tokenizer.json
+          curl -fL --retry 3 "$BASE/tokenizer_config.json"    -o models/Xenova/whisper-small.en/tokenizer_config.json
+          curl -fL --retry 3 "$BASE/special_tokens_map.json"  -o models/Xenova/whisper-small.en/special_tokens_map.json
+          curl -fL --retry 3 "$BASE/onnx/encoder_model_quantized.onnx"          -o models/Xenova/whisper-small.en/onnx/encoder_model_quantized.onnx
+          curl -fL --retry 3 "$BASE/onnx/decoder_model_merged_quantized.onnx"   -o models/Xenova/whisper-small.en/onnx/decoder_model_merged_quantized.onnx
+          echo "Model download complete. Sizes:"
+          du -sh models/Xenova/whisper-small.en/onnx/*.onnx
+
+      - name: Build DMG
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: npm run build:mac
