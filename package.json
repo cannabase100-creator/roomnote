@@ -8,35 +8,22 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "build:mac": "electron-builder --mac --universal",
-    "build:mac-arm": "electron-builder --mac --arm64",
-    "build:mac-intel": "electron-builder --mac --x64"
+    "build:mac": "electron-builder --mac --universal --publish never",
+    "build:mac-arm": "electron-builder --mac --arm64 --publish never",
+    "build:mac-intel": "electron-builder --mac --x64 --publish never"
   },
   "build": {
     "appId": "za.co.cannabase.roomnote",
     "productName": "RoomNote",
     "copyright": "Copyright © 2026 Cannabase",
-    "directories": {
-      "output": "dist",
-      "buildResources": "build"
-    },
-    "files": [
-      "main.js",
-      "preload.js",
-      "index.html"
-    ],
+    "directories": { "output": "dist", "buildResources": "build" },
+    "files": ["main.js", "preload.js", "index.html"],
     "mac": {
       "category": "public.app-category.productivity",
-      "icon": "build/icon.icns",
       "identity": null,
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
-      "target": [
-        {
-          "target": "dmg",
-          "arch": ["universal"]
-        }
-      ]
+      "target": [{ "target": "dmg", "arch": ["universal"] }]
     },
     "dmg": {
       "title": "${productName} ${version}",
