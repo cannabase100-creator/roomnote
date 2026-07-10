@@ -17,17 +17,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Install dependencies
         run: npm install
-
-      - name: Generate app icon
-        run: |
-          node -e "
-          const { createCanvas } = require('canvas');
-          // If canvas not available, skip
-          " 2>/dev/null || echo 'Skipping icon generation'
 
       - name: Build Mac DMG (Universal)
         env:
