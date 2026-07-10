@@ -1,0 +1,54 @@
+{
+  "name": "roomnote",
+  "version": "1.0.0",
+  "description": "Professional meeting transcription with speaker identification and inline notes",
+  "main": "main.js",
+  "author": "Cannabase <hello@cannabase.co.za>",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "build:mac": "electron-builder --mac --universal",
+    "build:mac-arm": "electron-builder --mac --arm64",
+    "build:mac-intel": "electron-builder --mac --x64"
+  },
+  "build": {
+    "appId": "za.co.cannabase.roomnote",
+    "productName": "RoomNote",
+    "copyright": "Copyright © 2026 Cannabase",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.icns",
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["universal"]
+        }
+      ]
+    },
+    "dmg": {
+      "title": "${productName} ${version}",
+      "contents": [
+        { "x": 180, "y": 200, "type": "file" },
+        { "x": 480, "y": 200, "type": "link", "path": "/Applications" }
+      ],
+      "window": { "width": 660, "height": 400 }
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  }
+}
