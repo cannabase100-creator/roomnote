@@ -1,1376 +1,679 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RoomNote</title>
-<style>
-/* ═══════════════════════════════════════════════════════════
-   TOKENS
-═══════════════════════════════════════════════════════════ */
-:root {
-  --bg:        #0D0E16;
-  --surf:      #13141E;
-  --surf2:     #1A1B28;
-  --surf3:     #222334;
-  --bd:        #272840;
-  --bd2:       #323454;
-  --text:      #E6E6F0;
-  --muted:     #636380;
-  --accent:    #5B6BF8;
-  --accent-h:  #7B89FF;
-  --accent-d:  #3A4BCC;
-  --danger:    #EF4444;
-  --amber:     #D97706;
-  --amber-bg:  #1A160A;
-  --amber-txt: #E2B96A;
-  --green:     #22C55E;
-  --radius:    10px;
-  --spk0: #5B9CF6; --spk1: #46D19A; --spk2: #F5A623;
-  --spk3: #B778F5; --spk4: #F56565; --spk5: #4FD1C5;
-}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{font-size:16px;scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
-body{
-  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
-  background:var(--bg);color:var(--text);min-height:100vh;line-height:1.55;
-  /* macOS traffic-light room */
-  padding-top:0;
-}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RoomNote</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* ── Electron titlebar padding ── */
-.is-electron body { padding-top: 0; }
-.t-header { padding-top: 12px; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: #111;
+      color: #e8e8e8;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+      -webkit-app-region: no-drag;
+    }
 
-/* ── Screens ── */
-.screen { display:none }
-.screen.active { display:block }
+    /* ── Loading screen ── */
+    #loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      gap: 24px;
+      padding: 40px;
+    }
+    .loading-logo { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; color: #fff; }
+    .loading-logo span { color: #3d7ee8; }
+    .loading-title { font-size: 18px; font-weight: 600; color: #e8e8e8; }
+    .loading-sub { font-size: 13px; color: #777; text-align: center; max-width: 380px; line-height: 1.6; }
+    .progress-bar { width: 340px; height: 4px; background: #2a2a2a; border-radius: 2px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #3d7ee8; border-radius: 2px; transition: width 0.3s ease; width: 0%; }
+    .progress-label { font-size: 12px; color: #666; }
+    .offline-note { font-size: 12px; color: #2d7a2d; background: #1a2e1a; border: 1px solid #2d5a2d;
+      border-radius: 6px; padding: 10px 16px; max-width: 380px; text-align: center; }
 
-/* ── Typography ── */
-label {
-  display:block;font-size:11px;font-weight:700;text-transform:uppercase;
-  letter-spacing:.7px;color:var(--muted);margin-bottom:7px;
-}
-input[type="text"],input[type="password"],select,textarea {
-  width:100%;background:var(--surf2);border:1px solid var(--bd2);
-  border-radius:8px;padding:10px 13px;color:var(--text);font-size:14px;
-  outline:none;transition:border-color .15s;font-family:inherit;
-  -webkit-appearance:none;appearance:none;
-}
-input[type="text"]:focus,input[type="password"]:focus,
-select:focus,textarea:focus { border-color:var(--accent) }
-input[type="password"] { font-family:monospace;letter-spacing:3px }
-select { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23636380' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat;background-position:right 12px center;padding-right:32px; }
-.hint{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.5}
-.hint a{color:var(--accent);text-decoration:none}
-.hint a:hover{text-decoration:underline}
+    /* ── Header ── */
+    #app { display: flex; flex-direction: column; height: 100vh; }
+    .header {
+      height: 52px; min-height: 52px;
+      display: flex; align-items: center; gap: 12px;
+      padding: 0 20px 0 80px;
+      background: #111; border-bottom: 1px solid #1e1e1e;
+      -webkit-app-region: drag;
+    }
+    .logo { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -0.3px; flex-shrink: 0; }
+    .logo span { color: #3d7ee8; }
+    .offline-badge {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.5px;
+      color: #4caf50; background: #1a2e1a; border: 1px solid #2d5a2d;
+      border-radius: 4px; padding: 3px 7px; flex-shrink: 0;
+    }
+    #session-name {
+      flex: 1; background: transparent; border: none; outline: none;
+      color: #aaa; font-size: 13px; min-width: 0;
+      -webkit-app-region: no-drag;
+    }
+    #session-name::placeholder { color: #444; }
+    #session-name:focus { color: #e8e8e8; }
 
-/* ── Buttons ── */
-.btn{
-  display:inline-flex;align-items:center;justify-content:center;gap:7px;
-  padding:10px 20px;border-radius:8px;border:none;cursor:pointer;
-  font-size:14px;font-weight:600;font-family:inherit;
-  transition:all .14s;text-decoration:none;white-space:nowrap;
-}
-.btn-primary{background:var(--accent);color:#fff}
-.btn-primary:hover{background:var(--accent-h);transform:translateY(-1px)}
-.btn-ghost{background:transparent;border:1px solid var(--bd2);color:var(--text)}
-.btn-ghost:hover{border-color:var(--muted);background:var(--surf2)}
-.btn-danger{background:var(--danger);color:#fff}
-.btn-danger:hover{opacity:.85}
-.btn-sm{padding:7px 13px;font-size:12px;border-radius:6px}
-.btn-full{width:100%;padding:14px;font-size:15px;margin-top:6px}
-.flex-1{flex:1}
-.row{display:flex;gap:10px}
+    /* ── Layout ── */
+    .layout { display: flex; flex: 1; overflow: hidden; }
 
-/* ── Cards & Dividers ── */
-.card{background:var(--surf);border:1px solid var(--bd);border-radius:var(--radius);padding:20px;margin-bottom:12px}
-.divider{height:1px;background:var(--bd);margin:16px 0}
-.mb12{margin-bottom:12px}
-.mb8{margin-bottom:8px}
-.mt6{margin-top:6px}
-.muted{color:var(--muted)}
-.tc{text-align:center}
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 240px; min-width: 240px; background: #141414;
+      border-right: 1px solid #1e1e1e;
+      display: flex; flex-direction: column; overflow: hidden;
+      padding: 16px 0;
+    }
+    .sb-section { padding: 0 16px 16px; }
+    .sb-label { font-size: 10px; font-weight: 600; color: #555; letter-spacing: 1px;
+      text-transform: uppercase; margin-bottom: 8px; }
+    select, .sb-select {
+      width: 100%; background: #1e1e1e; border: 1px solid #2a2a2a; color: #ccc;
+      font-size: 12px; padding: 7px 10px; border-radius: 6px; outline: none;
+      cursor: pointer; appearance: none;
+    }
+    select:focus { border-color: #3d7ee8; }
+    .sb-divider { height: 1px; background: #1e1e1e; margin: 4px 0 16px; }
 
-/* ═══════════════════════════════════════════════════════════
-   SETUP SCREEN
-═══════════════════════════════════════════════════════════ */
-#setup-screen { min-height:100vh }
-#setup-screen .outer {
-  display:flex;min-height:100vh;
-}
-#setup-screen .left {
-  flex:1;max-width:520px;padding:52px 40px 40px;
-  border-right:1px solid var(--bd);
-  overflow-y:auto;
-}
-#setup-screen .right {
-  flex:1;padding:52px 40px 40px;background:var(--surf);
-  overflow-y:auto;
-}
-.logo{display:flex;align-items:center;gap:9px;font-size:17px;font-weight:700;letter-spacing:-.3px;margin-bottom:28px}
-.logo-dot{width:9px;height:9px;border-radius:50%;background:var(--accent);flex-shrink:0}
-.app-tagline{font-size:22px;font-weight:700;letter-spacing:-.6px;margin-bottom:6px}
-.app-sub{font-size:14px;color:var(--muted);margin-bottom:24px;line-height:1.55}
-.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:24px}
-.chip{font-size:11px;padding:4px 10px;border-radius:20px;background:var(--surf2);border:1px solid var(--bd);color:var(--muted)}
-.or-row{text-align:center;font-size:12px;color:var(--muted);margin:12px 0}
-.file-label{
-  display:flex;align-items:center;justify-content:center;gap:7px;width:100%;
-  padding:10px;border:1px dashed var(--bd2);border-radius:8px;
-  color:var(--muted);font-size:13px;cursor:pointer;transition:all .14s;
-}
-.file-label:hover{border-color:var(--accent);color:var(--accent)}
-#file-upload{display:none}
+    /* Speaker list */
+    .speaker-item {
+      display: flex; align-items: center; gap: 9px; padding: 7px 8px;
+      border-radius: 6px; cursor: pointer; margin-bottom: 2px;
+    }
+    .speaker-item:hover { background: #1e1e1e; }
+    .speaker-item.active { background: #1a2840; }
+    .speaker-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .speaker-name { font-size: 13px; color: #ccc; flex: 1; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; }
+    .speaker-item.active .speaker-name { color: #fff; }
+    .speaker-edit-icon { font-size: 11px; color: #555; opacity: 0; transition: opacity 0.15s; }
+    .speaker-item:hover .speaker-edit-icon { opacity: 1; }
 
-/* History panel */
-.history-title{font-size:13px;font-weight:700;margin-bottom:14px;color:var(--muted);letter-spacing:.3px;text-transform:uppercase}
-.hist-empty{font-size:13px;color:var(--muted);padding:16px 0}
-.hist-card{
-  background:var(--surf2);border:1px solid var(--bd);border-radius:8px;
-  padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:all .14s;
-}
-.hist-card:hover{border-color:var(--accent);transform:translateY(-1px)}
-.hist-name{font-size:13px;font-weight:600;margin-bottom:3px}
-.hist-meta{font-size:11px;color:var(--muted)}
-.hist-del{float:right;background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 2px;transition:color .12s}
-.hist-del:hover{color:var(--danger)}
-.privacy-note{font-size:11px;color:var(--muted);margin-top:14px;line-height:1.5}
+    /* ── Buttons ── */
+    .btn-add-speaker {
+      display: flex; align-items: center; gap: 6px; width: calc(100% - 32px);
+      margin: 0 16px; background: none; border: 1px dashed #2a2a2a;
+      color: #555; font-size: 12px; padding: 7px 12px; border-radius: 6px;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .btn-add-speaker:hover { border-color: #3d7ee8; color: #3d7ee8; }
 
-/* ═══════════════════════════════════════════════════════════
-   RECORDING SCREEN
-═══════════════════════════════════════════════════════════ */
-#recording-screen .wrap{
-  display:flex;flex-direction:column;align-items:center;
-  justify-content:center;min-height:100vh;gap:26px;padding:40px 24px;text-align:center;
-}
-.rec-badge{display:flex;align-items:center;gap:9px;font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--danger)}
-.rec-dot{width:9px;height:9px;border-radius:50%;background:var(--danger);animation:blink 1.4s ease-in-out infinite}
-.rec-dot.paused{animation:none;opacity:.3}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
-.timer{font-size:64px;font-weight:200;letter-spacing:-3px;font-variant-numeric:tabular-nums}
-.sess-label{font-size:13px;color:var(--muted)}
+    .sb-bottom { margin-top: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
 
-/* Waveform */
-.waveform{display:flex;align-items:center;gap:4px;height:54px}
-.wb{width:5px;background:var(--accent);border-radius:3px;animation:wav 1.2s ease-in-out infinite;opacity:.7}
-.wb:nth-child(1){height:14px;animation-delay:0s}  .wb:nth-child(2){height:28px;animation-delay:.07s}
-.wb:nth-child(3){height:46px;animation-delay:.14s} .wb:nth-child(4){height:34px;animation-delay:.21s}
-.wb:nth-child(5){height:52px;animation-delay:.28s} .wb:nth-child(6){height:26px;animation-delay:.35s}
-.wb:nth-child(7){height:42px;animation-delay:.42s} .wb:nth-child(8){height:32px;animation-delay:.49s}
-.wb:nth-child(9){height:18px;animation-delay:.56s} .wb:nth-child(10){height:38px;animation-delay:.63s}
-.wb:nth-child(11){height:22px;animation-delay:.7s} .wb:nth-child(12){height:48px;animation-delay:.77s}
-.wb.paused{animation-play-state:paused}
-@keyframes wav{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.18)}}
+    .btn-record {
+      width: 100%; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 600;
+      cursor: pointer; border: none; transition: all 0.2s;
+      background: #3d7ee8; color: #fff;
+    }
+    .btn-record:hover { background: #5090f0; }
+    .btn-record.recording { background: #c0392b; animation: pulse-btn 2s infinite; }
+    .btn-record.recording:hover { background: #e74c3c; }
+    @keyframes pulse-btn {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(192,57,43,0.4); }
+      50% { box-shadow: 0 0 0 6px rgba(192,57,43,0); }
+    }
+    .btn-export {
+      width: 100%; padding: 9px; border-radius: 8px; font-size: 13px; font-weight: 500;
+      cursor: pointer; border: 1px solid #2a2a2a; background: transparent;
+      color: #888; transition: all 0.15s;
+    }
+    .btn-export:not(:disabled):hover { border-color: #555; color: #ccc; }
+    .btn-export:disabled { opacity: 0.35; cursor: not-allowed; }
 
-/* Level meter */
-.level-wrap{width:200px;height:5px;background:var(--bd2);border-radius:3px;overflow:hidden}
-.level-bar{height:100%;width:0%;background:linear-gradient(90deg,var(--green),var(--accent));border-radius:3px;transition:width .08s linear}
+    /* ── Transcript panel ── */
+    .transcript-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .tp-header {
+      height: 44px; display: flex; align-items: center; padding: 0 20px;
+      border-bottom: 1px solid #1e1e1e; gap: 12px; flex-shrink: 0;
+    }
+    .tp-title { font-size: 10px; font-weight: 600; color: #555; letter-spacing: 1px; text-transform: uppercase; }
+    .tp-status { font-size: 12px; color: #555; margin-left: auto; }
+    .tp-status.listening { color: #e08b4f; }
+    .tp-status.processing { color: #9b7ec8; }
 
-.rec-controls{display:flex;gap:10px;width:100%;max-width:380px}
-.rec-hint{font-size:13px;color:var(--muted);max-width:280px;line-height:1.55}
+    .transcript-body { flex: 1; overflow-y: auto; padding: 20px; }
+    .transcript-body::-webkit-scrollbar { width: 5px; }
+    .transcript-body::-webkit-scrollbar-track { background: transparent; }
+    .transcript-body::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
 
-/* ═══════════════════════════════════════════════════════════
-   PROCESSING SCREEN
-═══════════════════════════════════════════════════════════ */
-#processing-screen .wrap{
-  display:flex;flex-direction:column;align-items:center;
-  justify-content:center;min-height:100vh;gap:18px;padding:40px 24px;text-align:center;
-}
-.spinner{width:50px;height:50px;border:3px solid var(--bd2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.proc-title{font-size:20px;font-weight:600}
-.proc-status{font-size:13px;color:var(--muted);min-height:20px}
-.proc-bar-wrap{width:240px;height:4px;background:var(--bd2);border-radius:2px;overflow:hidden}
-.proc-bar{height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width .7s ease}
+    .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100%; gap: 10px; color: #444; }
+    .empty-state p { font-size: 14px; }
+    .empty-state p:last-child { font-size: 12px; }
 
-/* ═══════════════════════════════════════════════════════════
-   TRANSCRIPT SCREEN
-═══════════════════════════════════════════════════════════ */
-.t-header{
-  position:sticky;top:0;z-index:20;
-  display:flex;align-items:center;justify-content:space-between;
-  padding:13px 20px;gap:12px;
-  background:var(--surf);border-bottom:1px solid var(--bd);
-  -webkit-app-region:drag;
-}
-.t-header-left{-webkit-app-region:no-drag}
-.t-actions{display:flex;gap:6px;flex-shrink:0;-webkit-app-region:no-drag}
-.t-title{font-size:14px;font-weight:700;line-height:1.3}
-.t-meta{font-size:11px;color:var(--muted);margin-top:2px}
+    /* ── Transcript segments ── */
+    .segment { margin-bottom: 20px; }
+    .seg-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+    .seg-speaker {
+      font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px;
+      cursor: pointer; transition: opacity 0.15s; letter-spacing: 0.3px;
+    }
+    .seg-speaker:hover { opacity: 0.8; }
+    .seg-time { font-size: 11px; color: #444; }
+    .seg-text { font-size: 14px; line-height: 1.65; color: #d0d0d0; padding-left: 2px; }
+    .word { display: inline; }
+    .word.new { animation: wordFadeIn 0.25s ease forwards; opacity: 0; }
+    @keyframes wordFadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-/* Search bar */
-.search-bar{
-  display:none;position:sticky;top:49px;z-index:19;
-  background:var(--surf2);border-bottom:1px solid var(--bd);
-  padding:8px 16px;align-items:center;gap:10px;
-}
-.search-bar.open{display:flex}
-#search-input{background:var(--surf);border:1px solid var(--bd2);border-radius:6px;padding:7px 12px;font-size:13px;color:var(--text);flex:1;outline:none}
-#search-input:focus{border-color:var(--accent)}
-.search-count{font-size:12px;color:var(--muted);white-space:nowrap}
-.search-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:0 4px;transition:color .12s}
-.search-close:hover{color:var(--text)}
+    /* ── Status bar ── */
+    .status-bar {
+      height: 36px; display: flex; align-items: center; padding: 0 20px; gap: 12px;
+      border-top: 1px solid #1a1a1a; flex-shrink: 0;
+    }
+    .vol-bar { display: flex; gap: 2px; align-items: flex-end; height: 18px; }
+    .vol-bar span { width: 3px; background: #3d7ee8; border-radius: 1px; transition: height 0.08s; }
+    .status-text { font-size: 11px; color: #555; }
+    .status-text.active { color: #e08b4f; }
 
-.t-body{max-width:800px;margin:0 auto;padding:22px 20px 100px}
-
-/* Stats strip */
-.stats-strip{
-  display:flex;flex-wrap:wrap;gap:8px;
-  margin-bottom:20px;padding:14px 16px;
-  background:var(--surf);border:1px solid var(--bd);border-radius:var(--radius);
-}
-.stat-item{display:flex;flex-direction:column;gap:4px;min-width:120px;flex:1}
-.stat-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}
-.stat-bar-wrap{height:4px;background:var(--bd2);border-radius:2px;overflow:hidden}
-.stat-bar{height:100%;border-radius:2px}
-.stat-val{font-size:12px;color:var(--muted)}
-.stat-name{font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px}
-.stat-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-
-/* Utterances */
-.utt{display:flex;gap:14px;margin-bottom:2px;position:relative}
-.utt-left{width:100px;flex-shrink:0;padding-top:5px;text-align:right}
-.spk-badge{display:inline-block;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;background:rgba(255,255,255,.07)}
-.utt-ts{font-size:10px;color:var(--muted);margin-top:3px;font-variant-numeric:tabular-nums}
-.utt-right{
-  flex:1;background:var(--surf);border:1px solid var(--bd);
-  border-radius:var(--radius);padding:11px 14px;transition:border-color .12s;
-}
-.utt-right:hover{border-color:var(--bd2)}
-.utt-right.search-match{border-color:var(--amber)!important;background:rgba(217,119,6,.06)}
-.utt-text{font-size:14px;line-height:1.75}
-.utt-text mark{background:rgba(217,119,6,.35);color:var(--text);border-radius:2px;padding:0 2px}
-.add-note-btn{
-  display:inline-block;margin-top:8px;
-  background:none;border:1px dashed var(--bd2);color:var(--muted);
-  font-size:11px;padding:3px 9px;border-radius:5px;cursor:pointer;
-  font-family:inherit;transition:all .13s;
-}
-.add-note-btn:hover{border-color:var(--accent);color:var(--accent)}
-
-/* Note */
-.note-row{display:flex;gap:14px;margin-bottom:2px}
-.note-sp{width:100px;flex-shrink:0}
-.note-body{
-  flex:1;background:var(--amber-bg);border:1px solid var(--amber);
-  border-radius:8px;padding:10px 13px;
-  display:flex;align-items:flex-start;gap:8px;
-}
-.note-icon{font-size:14px;flex-shrink:0;margin-top:1px}
-.note-text-d{flex:1;font-size:13px;color:var(--amber-txt);line-height:1.6;white-space:pre-wrap}
-.note-edit-btn{
-  background:none;border:none;color:var(--muted);font-size:11px;
-  cursor:pointer;padding:2px 6px;border-radius:4px;font-family:inherit;flex-shrink:0;transition:all .12s;
-}
-.note-edit-btn:hover{background:var(--surf2);color:var(--text)}
-
-/* Note editor */
-.ned-row{display:flex;gap:14px;margin-bottom:2px}
-.ned-sp{width:100px;flex-shrink:0}
-.ned-inner{
-  flex:1;background:var(--amber-bg);border:1px solid var(--amber);
-  border-radius:8px;padding:11px;
-}
-.ned-ta{
-  width:100%;background:var(--surf2);border:1px solid var(--bd2);
-  border-radius:6px;color:var(--text);font-size:13px;font-family:inherit;
-  padding:8px 11px;resize:vertical;min-height:64px;outline:none;line-height:1.55;
-}
-.ned-ta:focus{border-color:var(--amber)}
-.ned-actions{display:flex;align-items:center;gap:8px;margin-top:8px}
-.ned-del{background:none;border:none;color:var(--danger);font-size:12px;cursor:pointer;font-family:inherit;padding:4px 8px;border-radius:4px;transition:background .12s}
-.ned-del:hover{background:rgba(239,68,68,.12)}
-
-.gap-row{height:12px}
-.empty{text-align:center;padding:60px 20px;color:var(--muted);font-size:14px}
-.empty h2{font-size:18px;margin-bottom:8px;color:var(--text)}
-
-/* ═══════════════════════════════════════════════════════════
-   MODALS
-═══════════════════════════════════════════════════════════ */
-.modal-bg{
-  display:none;position:fixed;inset:0;
-  background:rgba(0,0,0,.75);z-index:100;
-  align-items:center;justify-content:center;padding:20px;
-}
-.modal-bg.open{display:flex}
-.modal{
-  background:var(--surf);border:1px solid var(--bd2);
-  border-radius:14px;width:100%;max-width:460px;padding:24px;max-height:80vh;overflow-y:auto;
-}
-.modal-title{font-size:16px;font-weight:700;margin-bottom:18px}
-.modal-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
-
-/* Speaker modal rows */
-.spk-row{display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--bd)}
-.spk-row:last-child{border-bottom:none}
-.spk-row-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
-.spk-row-info{flex:0 0 auto;min-width:60px}
-.spk-row-count{font-size:10px;color:var(--muted);margin-bottom:2px}
-.spk-row-input{flex:1;background:var(--surf2);border:1px solid var(--bd2);border-radius:6px;padding:8px 11px;color:var(--text);font-size:13px;outline:none;font-family:inherit}
-.spk-row-input:focus{border-color:var(--accent)}
-
-/* Settings modal */
-.settings-row{margin-bottom:14px}
-.settings-row:last-child{margin-bottom:0}
-
-/* ═══════════════════════════════════════════════════════════
-   TOAST
-═══════════════════════════════════════════════════════════ */
-.toast{
-  position:fixed;bottom:22px;left:50%;
-  transform:translateX(-50%) translateY(80px);
-  background:var(--surf2);border:1px solid var(--bd2);
-  border-radius:8px;padding:9px 18px;font-size:13px;
-  z-index:300;transition:transform .25s ease;white-space:nowrap;pointer-events:none;
-}
-.toast.show{transform:translateX(-50%) translateY(0)}
-
-/* ═══════════════════════════════════════════════════════════
-   SCROLLBAR
-═══════════════════════════════════════════════════════════ */
-::-webkit-scrollbar{width:5px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:3px}
-</style>
+    /* ── Rename modal ── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      display: flex; align-items: center; justify-content: center; z-index: 100;
+    }
+    .modal-box {
+      background: #1e1e1e; border: 1px solid #2a2a2a; border-radius: 10px;
+      padding: 24px; width: 300px; display: flex; flex-direction: column; gap: 16px;
+    }
+    .modal-title { font-size: 14px; font-weight: 600; color: #e8e8e8; }
+    .modal-input {
+      background: #111; border: 1px solid #333; color: #e8e8e8;
+      font-size: 14px; padding: 9px 12px; border-radius: 6px; outline: none; width: 100%;
+    }
+    .modal-input:focus { border-color: #3d7ee8; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .btn-sm {
+      padding: 7px 16px; border-radius: 6px; font-size: 13px; font-weight: 500;
+      cursor: pointer; border: none;
+    }
+    .btn-cancel { background: #2a2a2a; color: #aaa; }
+    .btn-cancel:hover { background: #333; }
+    .btn-save { background: #3d7ee8; color: #fff; }
+    .btn-save:hover { background: #5090f0; }
+  </style>
 </head>
 <body>
 
-<!-- ══════════════════════════════════════
-     SETUP SCREEN
-══════════════════════════════════════ -->
-<div id="setup-screen" class="screen active">
-  <div class="outer">
+<!-- ── Loading Screen ── -->
+<div id="loading">
+  <div class="loading-logo"><span>●</span> RoomNote</div>
+  <div class="loading-title" id="loading-title">Setting up AI model</div>
+  <div class="loading-sub" id="loading-sub">
+    Downloading the Whisper speech model — this happens once. After this,<br>
+    RoomNote works with <strong>no internet connection, ever</strong>.
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+  <div class="progress-label" id="progress-label">Starting…</div>
+  <div class="offline-note">🔒 Audio never leaves this device. No API key. No servers.</div>
+</div>
 
-    <!-- LEFT: Form -->
-    <div class="left">
-      <div class="logo"><div class="logo-dot"></div>RoomNote</div>
+<!-- ── Main App ── -->
+<div id="app" style="display:none">
+  <header class="header">
+    <div class="logo"><span>●</span> RoomNote</div>
+    <div class="offline-badge">🔒 OFFLINE</div>
+    <input type="text" id="session-name" placeholder="Case or matter name (optional)" maxlength="80">
+  </header>
 
-      <div class="app-tagline">Record. Identify. Annotate.</div>
-      <div class="app-sub">Capture every voice in the room, automatically tell speakers apart, and add notes right in the transcript.</div>
-
-      <div class="chips">
-        <span class="chip">🎤 Auto speaker ID</span>
-        <span class="chip">👥 Name speakers</span>
-        <span class="chip">📝 Inline notes</span>
-        <span class="chip">🔒 Private & local</span>
-        <span class="chip">📄 PDF export</span>
+  <div class="layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sb-section">
+        <div class="sb-label">Microphone</div>
+        <select id="mic-select"></select>
       </div>
+      <div class="sb-divider"></div>
+      <div class="sb-section">
+        <div class="sb-label">Current Speaker</div>
+        <div id="speaker-list"></div>
+      </div>
+      <button class="btn-add-speaker" id="btn-add-speaker">＋ Add Speaker</button>
+      <div class="sb-bottom">
+        <button class="btn-record" id="btn-record">🎙 Start Recording</button>
+        <button class="btn-export" id="btn-export" disabled>📄 Export Transcript</button>
+      </div>
+    </aside>
 
-      <div class="card">
-        <div class="mb12">
-          <label for="api-key">Deepgram API Key</label>
-          <input type="password" id="api-key" placeholder="Paste your key here…" autocomplete="off" spellcheck="false">
-          <p class="hint mt6">
-            Free key → <a href="https://console.deepgram.com/signup" target="_blank">console.deepgram.com</a>
-            &nbsp;· $200 free credit · no card needed
-          </p>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="mb12">
-          <label for="session-name">Session Name <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px">(optional)</span></label>
-          <input type="text" id="session-name" placeholder="e.g. Smith Matter — Client Consultation">
-        </div>
-
-        <div class="mb12">
-          <label for="mic-select">Microphone</label>
-          <select id="mic-select">
-            <option value="">Default Microphone</option>
-          </select>
-        </div>
-
-        <div class="row">
-          <div style="flex:1">
-            <label for="model-select">Transcription Quality</label>
-            <select id="model-select">
-              <option value="nova-3">Nova 3 (Best accuracy)</option>
-              <option value="nova-2">Nova 2 (Faster)</option>
-              <option value="enhanced">Enhanced (Older)</option>
-            </select>
-          </div>
-          <div style="flex:1">
-            <label for="lang-select">Language</label>
-            <select id="lang-select">
-              <option value="en">English</option>
-              <option value="af">Afrikaans</option>
-              <option value="fr">French</option>
-              <option value="de">German</option>
-              <option value="es">Spanish</option>
-              <option value="pt">Portuguese</option>
-              <option value="nl">Dutch</option>
-              <option value="zh">Chinese</option>
-            </select>
-          </div>
+    <!-- Transcript panel -->
+    <main class="transcript-panel">
+      <div class="tp-header">
+        <div class="tp-title">Transcript</div>
+        <div class="tp-status" id="tp-status">Ready</div>
+      </div>
+      <div class="transcript-body" id="transcript">
+        <div class="empty-state" id="empty-state">
+          <p>No transcript yet</p>
+          <p>Select a microphone and press Start Recording</p>
         </div>
       </div>
-
-      <button class="btn btn-primary btn-full" onclick="startRecording()">
-        🎙&nbsp; Start Recording
-      </button>
-
-      <div class="or-row">— or upload an existing recording —</div>
-
-      <label class="file-label" for="file-upload">
-        📁&nbsp; Choose an audio or video file
-        <input type="file" id="file-upload" accept="audio/*,video/*" onchange="transcribeFile(event)">
-      </label>
-
-      <p class="privacy-note">
-        Your API key is stored only in this browser / app — never sent to any server other than Deepgram.<br>
-        Audio is processed by Deepgram and not retained after transcription.
-      </p>
-    </div>
-
-    <!-- RIGHT: History -->
-    <div class="right">
-      <div class="history-title">Recent Sessions</div>
-      <div id="history-list"><p class="hist-empty">No sessions yet — start your first recording.</p></div>
-    </div>
-
+      <div class="status-bar">
+        <div class="vol-bar" id="vol-bar">
+          <span style="height:3px"></span><span style="height:3px"></span>
+          <span style="height:3px"></span><span style="height:3px"></span>
+          <span style="height:3px"></span>
+        </div>
+        <div class="status-text" id="status-text">Not recording</div>
+      </div>
+    </main>
   </div>
 </div>
 
-
-<!-- ══════════════════════════════════════
-     RECORDING SCREEN
-══════════════════════════════════════ -->
-<div id="recording-screen" class="screen">
-  <div class="wrap">
-    <div class="logo"><div class="logo-dot"></div>RoomNote</div>
-    <div id="sess-label" class="sess-label muted"></div>
-
-    <div class="rec-badge">
-      <div class="rec-dot" id="rec-dot"></div>
-      <span id="rec-status-txt">Recording</span>
-    </div>
-
-    <div class="timer" id="rec-timer">00:00</div>
-
-    <div class="waveform" id="waveform">
-      <div class="wb"></div><div class="wb"></div><div class="wb"></div>
-      <div class="wb"></div><div class="wb"></div><div class="wb"></div>
-      <div class="wb"></div><div class="wb"></div><div class="wb"></div>
-      <div class="wb"></div><div class="wb"></div><div class="wb"></div>
-    </div>
-
-    <div class="level-wrap"><div class="level-bar" id="level-bar"></div></div>
-
-    <div class="rec-controls">
-      <button class="btn btn-ghost flex-1" id="pause-btn" onclick="togglePause()">⏸&nbsp; Pause</button>
-      <button class="btn btn-danger flex-1" onclick="stopRecording()">⏹&nbsp; Stop &amp; Transcribe</button>
-    </div>
-
-    <p class="rec-hint muted">Place the laptop in the centre of the room. All voices will be captured and separated automatically.</p>
-  </div>
-</div>
-
-
-<!-- ══════════════════════════════════════
-     PROCESSING SCREEN
-══════════════════════════════════════ -->
-<div id="processing-screen" class="screen">
-  <div class="wrap">
-    <div class="logo"><div class="logo-dot"></div>RoomNote</div>
-    <div class="spinner"></div>
-    <div class="proc-title">Transcribing your meeting…</div>
-    <div class="proc-status" id="proc-status">Uploading audio</div>
-    <div class="proc-bar-wrap"><div class="proc-bar" id="proc-bar"></div></div>
-    <p class="muted" style="font-size:12px">Usually 30–90 seconds</p>
-  </div>
-</div>
-
-
-<!-- ══════════════════════════════════════
-     TRANSCRIPT SCREEN
-══════════════════════════════════════ -->
-<div id="transcript-screen" class="screen">
-
-  <div class="t-header">
-    <div class="t-header-left">
-      <div class="t-title" id="t-title">Transcript</div>
-      <div class="t-meta"  id="t-meta"></div>
-    </div>
-    <div class="t-actions">
-      <button class="btn btn-ghost btn-sm" onclick="openSearch()" title="Find in transcript (⌘F)">🔍 Find</button>
-      <button class="btn btn-ghost btn-sm" onclick="openSpeakerModal()">👥 Speakers</button>
-      <button class="btn btn-ghost btn-sm" onclick="saveSession()">💾 Save</button>
-      <button class="btn btn-ghost btn-sm" onclick="exportTxt()">📋 Copy</button>
-      <button class="btn btn-ghost btn-sm" onclick="exportPDF()">📄 PDF</button>
-      <button class="btn btn-ghost btn-sm" onclick="newSession()">＋ New</button>
-    </div>
-  </div>
-
-  <!-- Search bar -->
-  <div class="search-bar" id="search-bar">
-    <input type="text" id="search-input" placeholder="Search transcript…" oninput="doSearch()" onkeydown="searchKey(event)">
-    <span class="search-count" id="search-count"></span>
-    <button class="search-close" onclick="closeSearch()">✕</button>
-  </div>
-
-  <div class="t-body" id="t-body"></div>
-
-</div>
-
-
-<!-- ══════════════════════════════════════
-     SPEAKER MODAL
-══════════════════════════════════════ -->
-<div class="modal-bg" id="spk-modal" onclick="modalBg(event,'spk-modal')">
-  <div class="modal">
-    <div class="modal-title">👥 Name Your Speakers</div>
-    <div id="spk-form"></div>
-    <div class="modal-foot">
-      <button class="btn btn-ghost btn-sm" onclick="closeModal('spk-modal')">Cancel</button>
-      <button class="btn btn-primary btn-sm" onclick="saveSpeakers()">Save Names</button>
+<!-- ── Rename modal ── -->
+<div class="modal-overlay" id="rename-modal" style="display:none">
+  <div class="modal-box">
+    <div class="modal-title">Rename Speaker</div>
+    <input type="text" class="modal-input" id="rename-input" maxlength="40" placeholder="e.g. Accused, Magistrate, Prosecutor">
+    <div class="modal-actions">
+      <button class="btn-sm btn-cancel" id="rename-cancel">Cancel</button>
+      <button class="btn-sm btn-save" id="rename-save">Save</button>
     </div>
   </div>
 </div>
-
-
-<!-- ══════════════════════════════════════
-     TOAST
-══════════════════════════════════════ -->
-<div class="toast" id="toast"></div>
-
 
 <script>
-// ════════════════════════════════════════════════════════
-// CONSTANTS & ELECTRON DETECTION
-// ════════════════════════════════════════════════════════
+'use strict';
 
-const SPK_COLORS   = ['#5B9CF6','#46D19A','#F5A623','#B778F5','#F56565','#4FD1C5']
-const PRINT_COLORS = ['#1D4ED8','#15803D','#B45309','#7C3AED','#B91C1C','#0F766E']
-const IS_ELECTRON  = typeof window.electronAPI !== 'undefined'
+const { Worker } = require('worker_threads');
+const { ipcRenderer } = require('electron');
+const path = require('path');
 
-// ════════════════════════════════════════════════════════
-// STATE
-// ════════════════════════════════════════════════════════
+const SPEAKER_COLORS = [
+  '#4A90D9','#E08B4F','#5BB878','#9B7EC8',
+  '#D4545A','#56B4B0','#C9A227','#7F8C8D'
+];
 
-const S = {
-  apiKey:      '',
-  sessionName: '',
-  mediaRec:    null,
-  stream:      null,
-  analyser:    null,
-  levelAnim:   null,
-  chunks:      [],
-  mimeType:    '',
-  durSecs:     0,
-  durTimer:    null,
-  paused:      false,
-  utterances:  [],
-  spkNames:    {},
-  notes:       {},
-  searchQuery: '',
-  searchIdx:   0,
+const STATE = {
+  speakers: [],
+  currentSpeakerId: null,
+  speakerCount: 0,
+  isRecording: false,
+  audioContext: null,
+  mediaStream: null,
+  processor: null,
+  audioBuffer: [],
+  sampleRate: 48000,
+  chunkSamples: 0,
+  segments: [],
+  worker: null,
+  workerReady: false,
+  pendingChunks: 0,
+  renamingId: null
+};
+
+// ── DOM refs ──────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const loadingEl   = $('loading');
+const appEl       = $('app');
+const progressFill = $('progress-fill');
+const progressLabel = $('progress-label');
+const loadingTitle = $('loading-title');
+const loadingSub  = $('loading-sub');
+const speakerList = $('speaker-list');
+const micSelect   = $('mic-select');
+const btnRecord   = $('btn-record');
+const btnExport   = $('btn-export');
+const btnAddSpk   = $('btn-add-speaker');
+const transcript  = $('transcript');
+const emptyState  = $('empty-state');
+const tpStatus    = $('tp-status');
+const statusText  = $('status-text');
+const renameModal = $('rename-modal');
+const renameInput = $('rename-input');
+
+// ── Worker init ───────────────────────────────────────────
+async function initWorker() {
+  const userData = await ipcRenderer.invoke('get-user-data');
+  const cacheDir = path.join(userData, 'whisper-cache');
+  const workerPath = path.join(__dirname, 'whisper-worker.js');
+
+  STATE.worker = new Worker(workerPath, { workerData: { cacheDir } });
+
+  STATE.worker.on('message', handleWorkerMessage);
+  STATE.worker.on('error', err => {
+    console.error('Worker error:', err);
+    setStatus('Worker error: ' + err.message);
+  });
+
+  STATE.worker.postMessage({ type: 'init', model: 'Xenova/whisper-small.en' });
 }
 
-// ════════════════════════════════════════════════════════
-// INIT
-// ════════════════════════════════════════════════════════
+function handleWorkerMessage(msg) {
+  switch (msg.type) {
+    case 'status':
+      setStatus(msg.text);
+      break;
 
-window.addEventListener('DOMContentLoaded', async () => {
-  // Restore API key
-  const key = localStorage.getItem('rn_key') || ''
-  if (key) document.getElementById('api-key').value = key
+    case 'dl_start':
+      loadingTitle.textContent = 'Downloading AI model (first launch only)';
+      loadingSub.innerHTML = 'Downloading <strong>' + msg.file +
+        '</strong> — this happens once. After this, RoomNote works with ' +
+        '<strong>no internet connection, ever</strong>.';
+      progressLabel.textContent = 'Starting download…';
+      break;
 
-  // Restore model & lang
-  const model = localStorage.getItem('rn_model') || 'nova-3'
-  const lang  = localStorage.getItem('rn_lang')  || 'en'
-  document.getElementById('model-select').value = model
-  document.getElementById('lang-select').value  = lang
+    case 'dl_progress':
+      progressFill.style.width = msg.pct + '%';
+      progressLabel.textContent = msg.file + ' — ' + msg.pct + '%';
+      break;
 
-  // Enumerate microphones (needs permission first)
-  await loadMics()
+    case 'dl_done':
+      progressLabel.textContent = msg.file + ' — done';
+      break;
 
-  // Render history
-  renderHistory()
+    case 'ready':
+      STATE.workerReady = true;
+      loadingEl.style.display = 'none';
+      appEl.style.display = 'flex';
+      appEl.style.flexDirection = 'column';
+      enumerateMics();
+      addSpeaker('Speaker 1');
+      setStatus('Model ready — select a mic and press Start');
+      break;
 
-  // Keyboard shortcuts
-  document.addEventListener('keydown', globalKey)
+    case 'result':
+      STATE.pendingChunks = Math.max(0, STATE.pendingChunks - 1);
+      if (msg.text) addSegment(msg.speakerId, msg.text);
+      if (STATE.pendingChunks === 0) tpStatus.textContent = 'Transcribing…';
+      break;
 
-  // Enter on fields
-  document.getElementById('api-key').addEventListener('keydown', e => {
-    if (e.key === 'Enter') document.getElementById('session-name').focus()
-  })
-  document.getElementById('session-name').addEventListener('keydown', e => {
-    if (e.key === 'Enter') startRecording()
-  })
-
-  // Electron menu integration
-  if (IS_ELECTRON) {
-    window.electronAPI.onMenu(handleMenu)
-    const ver = await window.electronAPI.version()
-    document.title = `RoomNote ${ver}`
+    case 'error':
+      console.error('Worker result error:', msg.message);
+      STATE.pendingChunks = Math.max(0, STATE.pendingChunks - 1);
+      break;
   }
-
-  // Persist model/lang changes
-  document.getElementById('model-select').addEventListener('change', e => localStorage.setItem('rn_model', e.target.value))
-  document.getElementById('lang-select').addEventListener('change',  e => localStorage.setItem('rn_lang',  e.target.value))
-})
-
-// ════════════════════════════════════════════════════════
-// ELECTRON MENU HANDLER
-// ════════════════════════════════════════════════════════
-
-function handleMenu(cmd) {
-  const m = { new:newSession, record:startRecording, pause:togglePause, stop:stopRecording,
-               save:saveSession, open:openSession, pdf:exportPDF, copy:exportTxt,
-               find:openSearch, speakers:openSpeakerModal }
-  if (m[cmd]) m[cmd]()
 }
 
-// ════════════════════════════════════════════════════════
-// MICROPHONE ENUMERATION
-// ════════════════════════════════════════════════════════
-
-async function loadMics(requestPermission = false) {
+// ── Microphone enumeration ────────────────────────────────
+async function enumerateMics() {
   try {
-    if (requestPermission) {
-      const tmp = await navigator.mediaDevices.getUserMedia({ audio: true })
-      tmp.getTracks().forEach(t => t.stop())
-    }
-    const devs = await navigator.mediaDevices.enumerateDevices()
-    const mics = devs.filter(d => d.kind === 'audioinput')
-    const sel  = document.getElementById('mic-select')
-    const prev = sel.value
-    sel.innerHTML = '<option value="">Default Microphone</option>'
-    mics.forEach((d, i) => {
-      const opt = document.createElement('option')
-      opt.value = d.deviceId
-      opt.textContent = d.label || `Microphone ${i + 1}`
-      sel.appendChild(opt)
-    })
-    if (prev) sel.value = prev
-  } catch {}
+    await navigator.mediaDevices.getUserMedia({ audio: true });
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const mics = devices.filter(d => d.kind === 'audioinput');
+    micSelect.innerHTML = '';
+    mics.forEach((mic, i) => {
+      const opt = document.createElement('option');
+      opt.value = mic.deviceId;
+      opt.textContent = mic.label || ('Microphone ' + (i + 1));
+      micSelect.appendChild(opt);
+    });
+  } catch (e) {
+    console.error('Mic error:', e);
+    const opt = document.createElement('option');
+    opt.textContent = 'No microphone found';
+    micSelect.appendChild(opt);
+  }
 }
 
-// ════════════════════════════════════════════════════════
-// SCREEN MANAGEMENT
-// ════════════════════════════════════════════════════════
-
-function showScreen(name) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'))
-  document.getElementById(name + '-screen').classList.add('active')
-  window.scrollTo(0, 0)
+// ── Speaker management ────────────────────────────────────
+function addSpeaker(name) {
+  const id = 's' + (++STATE.speakerCount);
+  const color = SPEAKER_COLORS[(STATE.speakerCount - 1) % SPEAKER_COLORS.length];
+  STATE.speakers.push({ id, name: name || ('Speaker ' + STATE.speakerCount), color });
+  if (!STATE.currentSpeakerId) STATE.currentSpeakerId = id;
+  renderSpeakerList();
 }
 
-// ════════════════════════════════════════════════════════
-// RECORDING
-// ════════════════════════════════════════════════════════
+function renderSpeakerList() {
+  speakerList.innerHTML = '';
+  STATE.speakers.forEach(sp => {
+    const div = document.createElement('div');
+    div.className = 'speaker-item' + (sp.id === STATE.currentSpeakerId ? ' active' : '');
+    div.innerHTML =
+      '<span class="speaker-dot" style="background:' + sp.color + '"></span>' +
+      '<span class="speaker-name">' + escHtml(sp.name) + '</span>' +
+      '<span class="speaker-edit-icon" data-id="' + sp.id + '">✏️</span>';
+    div.addEventListener('click', () => {
+      STATE.currentSpeakerId = sp.id;
+      renderSpeakerList();
+    });
+    div.querySelector('.speaker-edit-icon').addEventListener('click', e => {
+      e.stopPropagation();
+      openRenameModal(sp.id);
+    });
+    speakerList.appendChild(div);
+  });
+}
 
+// ── Recording ─────────────────────────────────────────────
 async function startRecording() {
-  const key = document.getElementById('api-key').value.trim()
-  if (!key) { toast('Enter your Deepgram API key first'); document.getElementById('api-key').focus(); return }
-  S.apiKey = key
-  localStorage.setItem('rn_key', key)
-
-  S.sessionName = document.getElementById('session-name').value.trim()
-    || ('Meeting — ' + new Date().toLocaleDateString('en-ZA', { day:'numeric', month:'short', year:'numeric' }))
-
-  // Request mic & enumerate
-  const deviceId = document.getElementById('mic-select').value
-  const audioConstraints = deviceId
-    ? { deviceId: { exact: deviceId }, echoCancellation: true, noiseSuppression: true }
-    : { echoCancellation: true, noiseSuppression: true }
+  const deviceId = micSelect.value;
+  const constraints = { audio: deviceId ? { deviceId: { exact: deviceId } } : true };
 
   try {
-    S.stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints })
-  } catch {
-    alert('Microphone access denied.\n\nAllow microphone access in your browser / system settings, then try again.')
-    return
+    STATE.mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+  } catch (e) {
+    setStatus('Microphone access denied: ' + e.message);
+    return;
   }
 
-  // Enumerate now that we have permission
-  await loadMics()
+  STATE.audioContext = new AudioContext();
+  STATE.sampleRate = STATE.audioContext.sampleRate;
+  STATE.chunkSamples = STATE.sampleRate * 5; // 5-second chunks
+  STATE.audioBuffer = [];
 
-  // Pick MIME
-  const types = ['audio/webm;codecs=opus','audio/mp4;codecs=mp4a.40.2','audio/ogg;codecs=opus','audio/webm','audio/mp4']
-  S.mimeType = types.find(t => { try { return MediaRecorder.isTypeSupported(t) } catch { return false } }) || ''
-  S.chunks = []; S.durSecs = 0; S.paused = false
+  const source = STATE.audioContext.createMediaStreamSource(STATE.mediaStream);
+  STATE.processor = STATE.audioContext.createScriptProcessor(4096, 1, 1);
 
-  try {
-    S.mediaRec = new MediaRecorder(S.stream, S.mimeType ? { mimeType: S.mimeType, audioBitsPerSecond: 64000 } : { audioBitsPerSecond: 64000 })
-  } catch {
-    S.mediaRec = new MediaRecorder(S.stream)
-  }
-  S.mimeType = S.mediaRec.mimeType
+  STATE.processor.onaudioprocess = e => {
+    const input = e.inputBuffer.getChannelData(0);
+    for (let i = 0; i < input.length; i++) STATE.audioBuffer.push(input[i]);
 
-  S.mediaRec.ondataavailable = e => { if (e.data?.size > 0) S.chunks.push(e.data) }
-  S.mediaRec.onstop = onRecordingStop
-  S.mediaRec.start(500)
+    // Volume meter
+    let sum = 0;
+    for (let i = 0; i < input.length; i++) sum += input[i] * input[i];
+    updateVolMeter(Math.sqrt(sum / input.length));
 
-  // Duration timer
-  S.durTimer = setInterval(() => {
-    if (!S.paused) {
-      S.durSecs++
-      document.getElementById('rec-timer').textContent = fmtTime(S.durSecs)
+    if (STATE.audioBuffer.length >= STATE.chunkSamples) {
+      const chunk = STATE.audioBuffer.splice(0, STATE.chunkSamples);
+      sendChunkToWorker(chunk);
     }
-  }, 1000)
+  };
 
-  // Audio level visualiser
-  startLevelMeter()
+  source.connect(STATE.processor);
+  STATE.processor.connect(STATE.audioContext.destination);
 
-  document.getElementById('sess-label').textContent = S.sessionName
-  showScreen('recording')
-}
-
-function startLevelMeter() {
-  try {
-    const ctx      = new AudioContext()
-    const src      = ctx.createMediaStreamSource(S.stream)
-    S.analyser     = ctx.createAnalyser()
-    S.analyser.fftSize = 256
-    src.connect(S.analyser)
-    const buf      = new Uint8Array(S.analyser.frequencyBinCount)
-    const bar      = document.getElementById('level-bar')
-    const tick = () => {
-      S.analyser.getByteFrequencyData(buf)
-      const avg = buf.reduce((a, b) => a + b, 0) / buf.length
-      bar.style.width = Math.min(100, avg * 2.2) + '%'
-      S.levelAnim = requestAnimationFrame(tick)
-    }
-    tick()
-  } catch {}
-}
-
-function stopLevelMeter() {
-  if (S.levelAnim) { cancelAnimationFrame(S.levelAnim); S.levelAnim = null }
-  const bar = document.getElementById('level-bar')
-  if (bar) bar.style.width = '0%'
-}
-
-function togglePause() {
-  if (!S.mediaRec) return
-  if (S.mediaRec.state === 'recording') {
-    S.mediaRec.pause(); S.paused = true
-    document.getElementById('pause-btn').textContent      = '▶  Resume'
-    document.getElementById('rec-dot').classList.add('paused')
-    document.getElementById('rec-status-txt').textContent = 'Paused'
-    document.querySelectorAll('.wb').forEach(b => b.classList.add('paused'))
-  } else if (S.mediaRec.state === 'paused') {
-    S.mediaRec.resume(); S.paused = false
-    document.getElementById('pause-btn').textContent      = '⏸  Pause'
-    document.getElementById('rec-dot').classList.remove('paused')
-    document.getElementById('rec-status-txt').textContent = 'Recording'
-    document.querySelectorAll('.wb').forEach(b => b.classList.remove('paused'))
-  }
+  STATE.isRecording = true;
+  btnRecord.textContent = '⏹ Stop Recording';
+  btnRecord.classList.add('recording');
+  micSelect.disabled = true;
+  setStatus('Recording…');
+  tpStatus.textContent = 'Recording';
+  emptyState.style.display = 'none';
+  btnExport.disabled = false;
 }
 
 function stopRecording() {
-  if (!S.mediaRec) return
-  clearInterval(S.durTimer)
-  stopLevelMeter()
-  S.stream.getTracks().forEach(t => t.stop())
-  S.mediaRec.stop()
-  showScreen('processing')
-  startProgress()
-}
+  if (STATE.processor) STATE.processor.disconnect();
+  if (STATE.audioContext) STATE.audioContext.close();
+  if (STATE.mediaStream) STATE.mediaStream.getTracks().forEach(t => t.stop());
 
-// ════════════════════════════════════════════════════════
-// FILE UPLOAD
-// ════════════════════════════════════════════════════════
-
-async function transcribeFile(ev) {
-  const file = ev.target.files[0]; if (!file) return
-  const key  = document.getElementById('api-key').value.trim()
-  if (!key) { toast('Enter your Deepgram API key first'); document.getElementById('api-key').focus(); return }
-  S.apiKey      = key
-  localStorage.setItem('rn_key', key)
-  S.sessionName = document.getElementById('session-name').value.trim() || file.name.replace(/\.[^.]+$/, '')
-  S.durSecs     = 0; S.chunks = []; S.mimeType = file.type || 'audio/mp4'
-  showScreen('processing'); startProgress()
-  await doTranscribe(file)
-}
-
-// ════════════════════════════════════════════════════════
-// PROGRESS BAR
-// ════════════════════════════════════════════════════════
-
-let _progIv = null
-function startProgress() {
-  const bar = document.getElementById('proc-bar')
-  let pct = 0
-  _progIv = setInterval(() => {
-    pct = Math.min(pct + (pct < 75 ? 2.5 : .4), 93)
-    bar.style.width = pct + '%'
-  }, 700)
-}
-function finishProgress() {
-  clearInterval(_progIv)
-  document.getElementById('proc-bar').style.width = '100%'
-}
-function setStatus(msg) { const el = document.getElementById('proc-status'); if (el) el.textContent = msg }
-
-// ════════════════════════════════════════════════════════
-// TRANSCRIPTION
-// ════════════════════════════════════════════════════════
-
-async function onRecordingStop() {
-  await doTranscribe(new Blob(S.chunks, { type: S.mimeType }))
-}
-
-async function doTranscribe(src) {
-  try {
-    setStatus('Uploading audio to Deepgram…')
-    const model   = localStorage.getItem('rn_model') || 'nova-3'
-    const lang    = localStorage.getItem('rn_lang')  || 'en'
-    const params  = new URLSearchParams({ model, language: lang, diarize:'true', utterances:'true', punctuate:'true', smart_format:'true' })
-    const ctype   = src instanceof Blob ? (src.type || 'audio/webm') : (src.type || 'audio/mp4')
-
-    setStatus('Identifying speakers and transcribing…')
-
-    const res = await fetch(`https://api.deepgram.com/v1/listen?${params}`, {
-      method: 'POST',
-      headers: { 'Authorization': `Token ${S.apiKey}`, 'Content-Type': ctype },
-      body: src,
-    })
-
-    if (!res.ok) {
-      let msg = `Error ${res.status}`
-      try { const j = await res.json(); msg = j.err_msg || j.reason || msg } catch {}
-      throw new Error(msg)
-    }
-
-    setStatus('Formatting transcript…')
-    const data = await res.json()
-    finishProgress()
-
-    S.utterances = (data.results?.utterances || []).filter(u => u.transcript?.trim())
-
-    if (!S.utterances.length) {
-      const full = data.results?.channels?.[0]?.alternatives?.[0]?.transcript || ''
-      if (full.trim()) S.utterances = [{ speaker:0, start:0, end:S.durSecs, transcript:full }]
-    }
-
-    const spks = uniqueSpks()
-    S.spkNames = {}; spks.forEach((s, i) => { S.spkNames[s] = `Speaker ${i + 1}` })
-    S.notes = {}
-
-    buildHeader()
-    renderTranscript()
-    showScreen('transcript')
-    saveToHistory()
-
-    // Native notification
-    if (IS_ELECTRON) {
-      window.electronAPI.notify('Transcription Complete', `${S.sessionName} — ${S.utterances.length} segments`)
-    } else if (Notification.permission === 'granted') {
-      new Notification('RoomNote', { body: `${S.sessionName} — transcription ready` })
-    }
-
-  } catch (err) {
-    console.error(err)
-    finishProgress()
-    alert('Transcription failed: ' + err.message + '\n\nCheck your API key and try again.')
-    showScreen('setup')
-  }
-}
-
-// ════════════════════════════════════════════════════════
-// TRANSCRIPT RENDERING
-// ════════════════════════════════════════════════════════
-
-function uniqueSpks() {
-  const seen = new Set(); const out = []
-  S.utterances.forEach(u => { if (!seen.has(u.speaker)) { seen.add(u.speaker); out.push(u.speaker) } })
-  return out
-}
-function spkColor(spk) { return SPK_COLORS[uniqueSpks().indexOf(spk) % SPK_COLORS.length] }
-function spkName(spk)  { return S.spkNames[spk] || `Speaker ${uniqueSpks().indexOf(spk) + 1}` }
-
-function buildHeader() {
-  const spks = uniqueSpks()
-  document.getElementById('t-title').textContent = S.sessionName
-  document.getElementById('t-meta').textContent  =
-    `${fmtTime(S.durSecs)} · ${S.utterances.length} segments · ${spks.length} speaker${spks.length !== 1 ? 's' : ''}`
-}
-
-function renderTranscript() {
-  const body = document.getElementById('t-body')
-  body.innerHTML = ''
-
-  if (!S.utterances.length) {
-    body.innerHTML = '<div class="empty"><h2>No speech detected</h2><p>Try a longer recording or check your microphone.</p></div>'
-    return
+  // Flush remaining buffer
+  if (STATE.audioBuffer.length > STATE.sampleRate * 0.5) {
+    sendChunkToWorker(STATE.audioBuffer.splice(0));
   }
 
-  // Speaker stats strip
-  const total = S.utterances.reduce((a, u) => a + Math.max(0, (u.end || 0) - (u.start || 0)), 0)
-  const spkDur = {}
-  S.utterances.forEach(u => {
-    const d = Math.max(0, (u.end || 0) - (u.start || 0))
-    spkDur[u.speaker] = (spkDur[u.speaker] || 0) + d
-  })
-
-  const strip = document.createElement('div')
-  strip.className = 'stats-strip'
-  uniqueSpks().forEach((spk, i) => {
-    const pct   = total > 0 ? Math.round((spkDur[spk] || 0) / total * 100) : 0
-    const color = SPK_COLORS[i % SPK_COLORS.length]
-    const item  = document.createElement('div')
-    item.className = 'stat-item'
-    item.innerHTML = `
-      <div class="stat-name"><div class="stat-dot" style="background:${color}"></div>${esc(spkName(spk))}</div>
-      <div class="stat-bar-wrap"><div class="stat-bar" style="width:${pct}%;background:${color}"></div></div>
-      <div class="stat-val">${fmtTime(Math.round(spkDur[spk] || 0))} · ${pct}%</div>`
-    strip.appendChild(item)
-  })
-  body.appendChild(strip)
-
-  // Utterances
-  const q = S.searchQuery.trim().toLowerCase()
-
-  S.utterances.forEach((utt, idx) => {
-    const color = spkColor(utt.speaker)
-    const name  = spkName(utt.speaker)
-    const ts    = fmtTime(Math.floor(utt.start || 0))
-    const txt   = utt.transcript || ''
-
-    // Highlight search
-    let displayTxt = esc(txt)
-    let isMatch = false
-    if (q && txt.toLowerCase().includes(q)) {
-      isMatch = true
-      const re = new RegExp(escRe(q), 'gi')
-      displayTxt = esc(txt).replace(re.source ? new RegExp(escRe(esc(q)), 'gi') : re,
-        m => `<mark>${m}</mark>`)
-      // simpler approach:
-      displayTxt = escAndHighlight(txt, q)
-    }
-
-    const row = document.createElement('div')
-    row.className = 'utt' + (isMatch ? ' search-highlighted' : '')
-    row.dataset.idx = idx
-    const noteBtn = S.notes[idx] ? '✏️ Edit note' : '+ Add note'
-    row.innerHTML = `
-      <div class="utt-left">
-        <span class="spk-badge" style="color:${color};background:${color}18">${esc(name)}</span>
-        <div class="utt-ts">${ts}</div>
-      </div>
-      <div class="utt-right${isMatch ? ' search-match' : ''}">
-        <div class="utt-text">${displayTxt}</div>
-        <button class="add-note-btn" onclick="openNoteEditor(${idx})">${noteBtn}</button>
-      </div>`
-    body.appendChild(row)
-
-    if (S.notes[idx]) {
-      const nr = document.createElement('div')
-      nr.className = 'note-row'; nr.id = 'note-disp-' + idx
-      nr.innerHTML = `
-        <div class="note-sp"></div>
-        <div class="note-body">
-          <span class="note-icon">📝</span>
-          <span class="note-text-d">${esc(S.notes[idx])}</span>
-          <button class="note-edit-btn" onclick="openNoteEditor(${idx})">Edit</button>
-        </div>`
-      body.appendChild(nr)
-    }
-
-    const gap = document.createElement('div')
-    gap.className = 'gap-row'
-    body.appendChild(gap)
-  })
-
-  updateSearchCount()
+  STATE.isRecording = false;
+  STATE.audioBuffer = [];
+  btnRecord.textContent = '🎙 Start Recording';
+  btnRecord.classList.remove('recording');
+  micSelect.disabled = false;
+  setStatus('Recording stopped');
+  tpStatus.textContent = 'Stopped';
+  updateVolMeter(0);
 }
 
-function escAndHighlight(text, query) {
-  if (!query) return esc(text)
-  const lc  = text.toLowerCase()
-  const qlc = query.toLowerCase()
-  let result = '', i = 0
-  while (i < text.length) {
-    const pos = lc.indexOf(qlc, i)
-    if (pos === -1) { result += esc(text.slice(i)); break }
-    result += esc(text.slice(i, pos))
-    result += `<mark>${esc(text.slice(pos, pos + query.length))}</mark>`
-    i = pos + query.length
+// ── Audio processing ──────────────────────────────────────
+function resample(buffer, fromRate, toRate) {
+  if (fromRate === toRate) return new Float32Array(buffer);
+  const ratio = fromRate / toRate;
+  const outLen = Math.round(buffer.length / ratio);
+  const out = new Float32Array(outLen);
+  for (let i = 0; i < outLen; i++) {
+    const pos = i * ratio;
+    const lo = Math.floor(pos);
+    const hi = Math.min(lo + 1, buffer.length - 1);
+    const frac = pos - lo;
+    out[i] = buffer[lo] * (1 - frac) + buffer[hi] * frac;
   }
-  return result
+  return out;
 }
 
-// ── Note editor ────────────────────────────────────────
-
-function openNoteEditor(idx) {
-  document.querySelectorAll('[id^="ned-"]').forEach(e => e.remove())
-  const uttRow = document.querySelector(`.utt[data-idx="${idx}"]`); if (!uttRow) return
-
-  const ned = document.createElement('div')
-  ned.className = 'ned-row'; ned.id = 'ned-' + idx
-  ned.innerHTML = `
-    <div class="ned-sp"></div>
-    <div class="ned-inner">
-      <textarea class="ned-ta" id="ned-ta-${idx}"
-        placeholder="Type your note… (⌘↩ / Ctrl+Enter to save)">${esc(S.notes[idx] || '')}</textarea>
-      <div class="ned-actions">
-        <button class="btn btn-primary btn-sm" onclick="saveNote(${idx})">Save Note</button>
-        <button class="btn btn-ghost  btn-sm" onclick="cancelNote(${idx})">Cancel</button>
-        ${S.notes[idx] ? `<button class="ned-del" onclick="deleteNote(${idx})">Delete</button>` : ''}
-      </div>
-    </div>`
-
-  const dispEl = document.getElementById('note-disp-' + idx)
-  const anchor = dispEl ? dispEl.nextElementSibling : uttRow.nextElementSibling
-  uttRow.parentNode.insertBefore(ned, anchor)
-
-  const ta = document.getElementById('ned-ta-' + idx)
-  ta.focus(); ta.selectionStart = ta.selectionEnd = ta.value.length
-  ta.addEventListener('keydown', e => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); saveNote(idx) }
-    if (e.key === 'Escape') cancelNote(idx)
-  })
+function sendChunkToWorker(samples) {
+  if (!STATE.workerReady) return;
+  const arr = Array.isArray(samples) ? new Float32Array(samples) : samples;
+  const resampled = resample(arr, STATE.sampleRate, 16000);
+  const buffer = resampled.buffer.slice(0);
+  const speakerId = STATE.currentSpeakerId;
+  STATE.pendingChunks++;
+  tpStatus.textContent = 'Transcribing…';
+  STATE.worker.postMessage({ type: 'transcribe', id: Date.now(), buffer, speakerId }, [buffer]);
 }
 
-function saveNote(idx) {
-  const ta = document.getElementById('ned-ta-' + idx)
-  const v  = ta?.value.trim() || ''
-  if (v) S.notes[idx] = v; else delete S.notes[idx]
-  renderTranscript(); toast('Note saved')
+function updateVolMeter(rms) {
+  const bars = document.querySelectorAll('.vol-bar span');
+  const level = Math.min(1, rms * 8);
+  bars.forEach((b, i) => {
+    const threshold = (i + 1) / bars.length;
+    b.style.height = level >= threshold ? '14px' : '3px';
+    b.style.background = level > 0.7 ? '#D4545A' : level > 0.4 ? '#C9A227' : '#5BB878';
+  });
 }
-function cancelNote(idx) { const el = document.getElementById('ned-' + idx); if (el) el.remove() }
-function deleteNote(idx) { delete S.notes[idx]; renderTranscript(); toast('Note deleted') }
 
-// ════════════════════════════════════════════════════════
-// SEARCH
-// �
-// ════════════════════════════════════════════════════════
-// SEARCH
-// ════════════════════════════════════════════════════════
+// ── Transcript rendering ──────────────────────────────────
+function addSegment(speakerId, text) {
+  const speaker = STATE.speakers.find(s => s.id === speakerId) || STATE.speakers[0];
+  const now = new Date();
+  const ts = now.toTimeString().slice(0, 8);
 
-function openSearch() {
-  const screen = document.querySelector('.screen.active')?.id
-  if (screen !== 'transcript-screen') return
-  document.getElementById('search-bar').classList.add('open')
-  const inp = document.getElementById('search-input')
-  inp.focus(); inp.select()
+  const seg = document.createElement('div');
+  seg.className = 'segment';
+  seg.innerHTML =
+    '<div class="seg-meta">' +
+    '<span class="seg-speaker" style="color:' + speaker.color + '">' + escHtml(speaker.name) + '</span>' +
+    '<span class="seg-time">' + ts + '</span>' +
+    '</div>' +
+    '<div class="seg-text" id="seg-' + Date.now() + '"></div>';
+
+  transcript.appendChild(seg);
+
+  const textEl = seg.querySelector('.seg-text');
+  animateWords(textEl, text);
+
+  STATE.segments.push({ speaker: speaker.name, time: ts, text });
+  transcript.scrollTop = transcript.scrollHeight;
 }
-function closeSearch() {
-  document.getElementById('search-bar').classList.remove('open')
-  S.searchQuery = ''
-  renderTranscript()
+
+function animateWords(container, text) {
+  const words = text.split(/\s+/).filter(Boolean);
+  words.forEach((word, i) => {
+    const span = document.createElement('span');
+    span.className = 'word new';
+    span.textContent = word + ' ';
+    span.style.animationDelay = (i * 80) + 'ms';
+    container.appendChild(span);
+    span.addEventListener('animationend', () => span.classList.remove('new'), { once: true });
+  });
 }
-function doSearch() {
-  S.searchQuery = document.getElementById('search-input').value
-  S.searchIdx   = 0
-  renderTranscript()
-  scrollToMatch(0)
+
+// ── Rename modal ──────────────────────────────────────────
+function openRenameModal(speakerId) {
+  const sp = STATE.speakers.find(s => s.id === speakerId);
+  if (!sp) return;
+  STATE.renamingId = speakerId;
+  renameInput.value = sp.name;
+  renameModal.style.display = 'flex';
+  renameInput.focus();
+  renameInput.select();
 }
-function searchKey(e) {
-  if (e.key === 'Escape') { closeSearch(); return }
-  if (e.key === 'Enter') {
-    const matches = document.querySelectorAll('.search-match')
-    if (!matches.length) return
-    S.searchIdx = (S.searchIdx + (e.shiftKey ? -1 : 1) + matches.length) % matches.length
-    scrollToMatch(S.searchIdx)
+
+function closeRenameModal() {
+  renameModal.style.display = 'none';
+  STATE.renamingId = null;
+}
+
+function saveRename() {
+  const name = renameInput.value.trim();
+  if (!name || !STATE.renamingId) { closeRenameModal(); return; }
+  const sp = STATE.speakers.find(s => s.id === STATE.renamingId);
+  if (sp) {
+    const oldName = sp.name;
+    sp.name = name;
+    renderSpeakerList();
+    // Update existing transcript segments
+    document.querySelectorAll('.seg-speaker').forEach(el => {
+      if (el.textContent === oldName) el.textContent = name;
+    });
+    STATE.segments.forEach(seg => {
+      if (seg.speaker === oldName) seg.speaker = name;
+    });
   }
-}
-function scrollToMatch(n) {
-  const matches = document.querySelectorAll('.search-match')
-  if (!matches.length) return
-  matches[n]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-}
-function updateSearchCount() {
-  const count = document.querySelectorAll('.search-match').length
-  const el    = document.getElementById('search-count')
-  if (el) el.textContent = S.searchQuery ? (count ? `${count} match${count !== 1 ? 'es' : ''}` : 'No matches') : ''
+  closeRenameModal();
 }
 
-// ════════════════════════════════════════════════════════
-// SPEAKER MODAL
-// ════════════════════════════════════════════════════════
-
-function openSpeakerModal() {
-  if (!S.utterances.length) return
-  const form = document.getElementById('spk-form')
-  form.innerHTML = ''
-  uniqueSpks().forEach((spk, i) => {
-    const color = SPK_COLORS[i % SPK_COLORS.length]
-    const count = S.utterances.filter(u => u.speaker === spk).length
-    const row   = document.createElement('div')
-    row.className = 'spk-row'
-    row.innerHTML = `
-      <div class="spk-row-dot" style="background:${color}"></div>
-      <div class="spk-row-info"><div class="spk-row-count">${count} seg${count !== 1 ? 's' : ''}</div></div>
-      <input type="text" class="spk-row-input" id="spk-inp-${spk}"
-        value="${esc(S.spkNames[spk] || `Speaker ${i + 1}`)}" placeholder="Enter name…">`
-    form.appendChild(row)
-  })
-  document.getElementById('spk-modal').classList.add('open')
-  const first = form.querySelector('input')
-  if (first) setTimeout(() => { first.focus(); first.select() }, 60)
+// ── Export ────────────────────────────────────────────────
+async function exportTranscript() {
+  if (!STATE.segments.length) return;
+  const sessionName = $('session-name').value.trim() || 'RoomNote Transcript';
+  const header = sessionName + '\nExported: ' + new Date().toLocaleString() + '\n' +
+    '='.repeat(60) + '\n\n';
+  const body = STATE.segments.map(s =>
+    '[' + s.time + '] ' + s.speaker + '\n' + s.text + '\n'
+  ).join('\n');
+  const content = header + body;
+  const filename = sessionName.replace(/[^a-z0-9_\-\s]/gi, '') + '.txt';
+  const result = await ipcRenderer.invoke('save-file', { content, filename });
+  if (result.success) setStatus('Exported to ' + result.path);
 }
 
-function saveSpeakers() {
-  uniqueSpks().forEach(spk => {
-    const inp = document.getElementById('spk-inp-' + spk)
-    if (inp && inp.value.trim()) S.spkNames[spk] = inp.value.trim()
-  })
-  closeModal('spk-modal')
-  buildHeader(); renderTranscript(); toast('Speaker names saved')
+// ── Helpers ───────────────────────────────────────────────
+function setStatus(msg) {
+  statusText.textContent = msg;
 }
 
-// ════════════════════════════════════════════════════════
-// SESSION HISTORY
-// ════════════════════════════════════════════════════════
-
-function getHistory() { return JSON.parse(localStorage.getItem('rn_history') || '[]') }
-function setHistory(h) { localStorage.setItem('rn_history', JSON.stringify(h)) }
-
-function saveToHistory() {
-  const entry = {
-    id:         Date.now(),
-    name:       S.sessionName,
-    durSecs:    S.durSecs,
-    spkCount:   uniqueSpks().length,
-    uttCount:   S.utterances.length,
-    date:       new Date().toISOString(),
-    utterances: S.utterances,
-    spkNames:   S.spkNames,
-    notes:      S.notes,
-  }
-  const h = getHistory()
-  h.unshift(entry)
-  if (h.length > 25) h.pop()
-  setHistory(h)
-  renderHistory()
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+            .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-function renderHistory() {
-  const list = document.getElementById('history-list'); if (!list) return
-  const h    = getHistory()
-  if (!h.length) {
-    list.innerHTML = '<p class="hist-empty">No sessions yet — start your first recording.</p>'
-    return
-  }
-  list.innerHTML = ''
-  h.forEach(entry => {
-    const d    = new Date(entry.date)
-    const card = document.createElement('div')
-    card.className = 'hist-card'
-    card.innerHTML = `
-      <button class="hist-del" onclick="deleteHistEntry(event,${entry.id})" title="Delete">✕</button>
-      <div class="hist-name">${esc(entry.name)}</div>
-      <div class="hist-meta">${d.toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})} · ${fmtTime(entry.durSecs||0)} · ${entry.spkCount} speaker${entry.spkCount!==1?'s':''} · ${entry.uttCount} segments</div>`
-    card.addEventListener('click', e => { if (!e.target.classList.contains('hist-del')) loadHistEntry(entry) })
-    list.appendChild(card)
-  })
-}
+// ── Event listeners ───────────────────────────────────────
+btnRecord.addEventListener('click', () => {
+  if (!STATE.workerReady) { setStatus('Model still loading…'); return; }
+  if (STATE.isRecording) stopRecording();
+  else startRecording();
+});
 
-function loadHistEntry(entry) {
-  S.sessionName = entry.name
-  S.durSecs     = entry.durSecs || 0
-  S.utterances  = entry.utterances || []
-  S.spkNames    = entry.spkNames   || {}
-  S.notes       = entry.notes      || {}
-  buildHeader(); renderTranscript(); showScreen('transcript')
-}
+btnExport.addEventListener('click', exportTranscript);
 
-function deleteHistEntry(e, id) {
-  e.stopPropagation()
-  setHistory(getHistory().filter(x => x.id !== id))
-  renderHistory()
-}
+btnAddSpk.addEventListener('click', () => {
+  if (STATE.speakers.length >= 8) return;
+  addSpeaker('Speaker ' + (STATE.speakerCount + 1));
+  STATE.currentSpeakerId = STATE.speakers[STATE.speakers.length - 1].id;
+  renderSpeakerList();
+});
 
-// ════════════════════════════════════════════════════════
-// SAVE / OPEN SESSION (ELECTRON + BROWSER)
-// ════════════════════════════════════════════════════════
+$('rename-cancel').addEventListener('click', closeRenameModal);
+$('rename-save').addEventListener('click', saveRename);
 
-async function saveSession() {
-  if (!S.utterances.length) { toast('Nothing to save yet'); return }
-  const data = {
-    version:    1,
-    name:       S.sessionName,
-    durSecs:    S.durSecs,
-    utterances: S.utterances,
-    spkNames:   S.spkNames,
-    notes:      S.notes,
-    savedAt:    new Date().toISOString(),
-  }
-  const filename = S.sessionName.replace(/[^\w\s-]/g,'').trim() + '.rn'
-  if (IS_ELECTRON) {
-    const res = await window.electronAPI.saveSession(filename, data)
-    if (res.ok) toast('Session saved')
-  } else {
-    const a   = document.createElement('a')
-    a.href    = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(data, null, 2))
-    a.download = filename; a.click()
-    toast('Session downloaded')
-  }
-}
+renameInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') saveRename();
+  if (e.key === 'Escape') closeRenameModal();
+});
 
-async function openSession() {
-  if (IS_ELECTRON) {
-    const res = await window.electronAPI.loadSession()
-    if (res.ok && res.data) loadSessionData(res.data)
-  } else {
-    const input   = document.createElement('input')
-    input.type    = 'file'; input.accept = '.rn,.json'
-    input.onchange = e => {
-      const file = e.target.files[0]; if (!file) return
-      const reader = new FileReader()
-      reader.onload = ev => {
-        try { loadSessionData(JSON.parse(ev.target.result)) }
-        catch { toast('Could not read session file') }
-      }
-      reader.readAsText(file)
-    }
-    input.click()
-  }
-}
+renameModal.addEventListener('click', e => {
+  if (e.target === renameModal) closeRenameModal();
+});
 
-function loadSessionData(d) {
-  S.sessionName = d.name       || 'Session'
-  S.durSecs     = d.durSecs    || 0
-  S.utterances  = d.utterances || []
-  S.spkNames    = d.spkNames   || {}
-  S.notes       = d.notes      || {}
-  buildHeader(); renderTranscript(); showScreen('transcript'); toast('Session loaded')
-}
+// ── Boot ──────────────────────────────────────────────────
+initWorker();
 
-// ════════════════════════════════════════════════════════
-// EXPORT
-// ════════════════════════════════════════════════════════
-
-function exportTxt() {
-  let out = S.sessionName + '\n'
-  out += new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'})
-  out += '  ·  ' + fmtTime(S.durSecs) + '\n\n' + '═'.repeat(60) + '\n\n'
-  S.utterances.forEach((u, i) => {
-    out += `[${fmtTime(Math.floor(u.start||0))}]  ${spkName(u.speaker)}\n${u.transcript||''}\n`
-    if (S.notes[i]) out += `\n📝 NOTE: ${S.notes[i]}\n`
-    out += '\n'
-  })
-  navigator.clipboard.writeText(out)
-    .then(() => toast('Transcript copied to clipboard'))
-    .catch(() => {
-      const a = document.createElement('a')
-      a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(out)
-      a.download = S.sessionName.replace(/[^\w\s-]/g,'') + '.txt'; a.click()
-    })
-}
-
-function exportPDF() {
-  const spks = uniqueSpks()
-  let rows = ''
-  S.utterances.forEach((u, i) => {
-    const idx  = spks.indexOf(u.speaker)
-    const col  = PRINT_COLORS[idx % PRINT_COLORS.length]
-    const ts   = fmtTime(Math.floor(u.start||0))
-    rows += `<div class="block">
-      <div class="spk" style="color:${col}">${esc(spkName(u.speaker))}<span class="ts">${ts}</span></div>
-      <div class="txt">${esc(u.transcript||'')}</div>
-    </div>`
-    if (S.notes[i]) rows += `<div class="note"><div class="nl">📝 NOTE</div><div class="nb">${esc(S.notes[i])}</div></div>`
-  })
-  let legend = '<div class="leg">'
-  spks.forEach((spk, i) => {
-    legend += `<span class="lc" style="color:${PRINT_COLORS[i%PRINT_COLORS.length]}">● ${esc(spkName(spk))}</span>`
-  })
-  legend += '</div>'
-  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
-  <title>${esc(S.sessionName)}</title>
-  <style>
-    @page{margin:22mm 20mm}
-    body{font-family:'Helvetica Neue',Arial,sans-serif;color:#111;font-size:13px}
-    h1{font-size:19px;margin:0 0 4px;font-weight:700}
-    .meta{color:#666;font-size:12px;margin-bottom:8px}
-    .leg{display:flex;flex-wrap:wrap;gap:14px;padding:10px 14px;border:1px solid #ddd;border-radius:6px;margin-bottom:18px}
-    .lc{font-size:12px;font-weight:700}
-    hr{border:none;border-top:1px solid #e5e7eb;margin:14px 0}
-    .block{margin-bottom:14px;page-break-inside:avoid}
-    .spk{font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
-    .ts{font-weight:400;color:#888;margin-left:10px}
-    .txt{font-size:14px;line-height:1.75;color:#1A1A1A}
-    .note{background:#FFFBEB;border-left:3px solid #D97706;padding:9px 13px;margin:2px 0 14px;border-radius:4px;page-break-inside:avoid}
-    .nl{font-size:10px;font-weight:700;color:#B45309;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
-    .nb{font-size:13px;color:#78350F;line-height:1.5}
-  </style></head><body>
-  <h1>${esc(S.sessionName)}</h1>
-  <div class="meta">${new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'})} &nbsp;·&nbsp; ${fmtTime(S.durSecs)} &nbsp;·&nbsp; ${spks.length} speaker${spks.length!==1?'s':''}</div>
-  <hr>${legend}${rows}
-  </body></html>`
-  const w = window.open('','_blank','width=820,height=700')
-  if (!w) { toast('Allow pop-ups to export PDF'); return }
-  w.document.write(html); w.document.close()
-  w.addEventListener('load', () => { w.focus(); w.print() })
-}
-
-// ════════════════════════════════════════════════════════
-// NEW SESSION
-// ════════════════════════════════════════════════════════
-
-function newSession() {
-  if (S.utterances.length && !confirm('Start a new session? Current transcript will be cleared.')) return
-  S.utterances = []; S.notes = {}; S.spkNames = {}
-  S.chunks = []; S.durSecs = 0; S.searchQuery = ''
-  document.getElementById('session-name').value = ''
-  document.getElementById('file-upload').value  = ''
-  closeSearch()
-  renderHistory()
-  showScreen('setup')
-}
-
-// ════════════════════════════════════════════════════════
-// MODAL HELPERS
-// ════════════════════════════════════════════════════════
-
-function closeModal(id) { document.getElementById(id).classList.remove('open') }
-function modalBg(e, id) { if (e.target === document.getElementById(id)) closeModal(id) }
-
-// ════════════════════════════════════════════════════════
-// GLOBAL KEYBOARD
-// ════════════════════════════════════════════════════════
-
-function globalKey(e) {
-  if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
-    const screen = document.querySelector('.screen.active')?.id
-    if (screen === 'transcript-screen') { e.preventDefault(); openSearch() }
-  }
-  if (e.key === 'Escape') {
-    const sb = document.getElementById('search-bar')
-    if (sb && sb.classList.contains('open')) closeSearch()
-  }
-}
-
-// ════════════════════════════════════════════════════════
-// TOAST
-// ════════════════════════════════════════════════════════
-
-let _toastTmo
-function toast(msg) {
-  const el = document.getElementById('toast')
-  el.textContent = msg; el.classList.add('show')
-  clearTimeout(_toastTmo)
-  _toastTmo = setTimeout(() => el.classList.remove('show'), 2600)
-}
-
-// ════════════════════════════════════════════════════════
-// UTILITIES
-// ════════════════════════════════════════════════════════
-
-function fmtTime(s) {
-  s = Math.max(0, Math.floor(s))
-  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60
-  return h > 0 ? `${h}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`
-}
-function pad(n) { return String(n).padStart(2, '0') }
-function esc(str) {
-  if (str == null) return ''
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
-}
-function escRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') }
-
-// ════════════════════════════════════════════════════════
-// SCREEN STATE (read-only computed property)
-// ════════════════════════════════════════════════════════
-
-Object.defineProperty(S, 'screen', {
-  get() { return document.querySelector('.screen.active')?.id.replace('-screen','') || '' }
-})
 </script>
 </body>
 </html>

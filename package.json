@@ -1,23 +1,32 @@
 {
   "name": "roomnote",
-  "version": "1.0.0",
-  "description": "Professional meeting transcription with speaker identification and inline notes",
+  "version": "2.0.0",
+  "description": "Offline meeting transcription — no internet required after setup",
   "main": "main.js",
-  "author": "Cannabase <hello@cannabase.co.za>",
+  "author": "Lennox Digital Systems",
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
     "start": "electron .",
-    "build:mac": "electron-builder --mac --universal --publish never",
-    "build:mac-arm": "electron-builder --mac --arm64 --publish never",
-    "build:mac-intel": "electron-builder --mac --x64 --publish never"
+    "build:mac": "electron-builder --mac --universal --publish never"
   },
   "build": {
-    "appId": "za.co.cannabase.roomnote",
+    "appId": "za.co.lennoxdigital.roomnote",
     "productName": "RoomNote",
-    "copyright": "Copyright © 2026 Cannabase",
+    "copyright": "Copyright © 2026 Lennox Digital Systems",
+    "asar": false,
     "directories": { "output": "dist", "buildResources": "build" },
-    "files": ["main.js", "preload.js", "index.html"],
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "whisper-worker.js",
+      "node_modules/**/*",
+      "!node_modules/.cache/**",
+      "!node_modules/**/*.md",
+      "!node_modules/**/{test,tests,__tests__}/**",
+      "!**/.git/**"
+    ],
     "mac": {
       "category": "public.app-category.productivity",
       "identity": null,
@@ -33,6 +42,9 @@
       ],
       "window": { "width": 660, "height": 400 }
     }
+  },
+  "dependencies": {
+    "@xenova/transformers": "^2.17.2"
   },
   "devDependencies": {
     "electron": "^33.2.0",

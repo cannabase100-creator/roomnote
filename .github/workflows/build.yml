@@ -1,47 +1,36 @@
-name: Build RoomNote for Mac
+name: Build RoomNote DMG
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
   build-mac:
     runs-on: macos-latest
+    timeout-minutes: 30
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Build Mac DMG (Universal)
+      - name: Build universal DMG
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false
-          ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: npm run build:mac
-
-      - name: List dist output
-        run: ls -lh dist/
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: RoomNote-Mac-DMG
+          name: RoomNote-${{ github.sha }}
           path: dist/*.dmg
           retention-days: 30
-          if-no-files-found: warn
-
-      - name: Upload App (fallback)
-        uses: actions/upload-artifact@v4
-        with:
-          name: RoomNote-Mac-App
-          path: dist/mac-universal/RoomNote.app
-          retention-days: 30
-          if-no-files-found: ignore
