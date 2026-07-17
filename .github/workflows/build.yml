@@ -26,9 +26,13 @@ jobs:
       # ── Bundle Ollama binary ───────────────────────────────────────────────
       - name: Download Ollama binary (Mac)
         run: |
-          mkdir -p build/ollama
-          curl -fsSL https://ollama.com/download/ollama-darwin -o build/ollama/ollama
+          mkdir -p build/ollama /tmp/ollama-extract
+          curl -fsSL "https://github.com/ollama/ollama/releases/latest/download/ollama-darwin.tgz" \
+            | tar xz -C /tmp/ollama-extract/
+          find /tmp/ollama-extract -maxdepth 2 -name 'ollama' -type f \
+            | head -1 | xargs -I{} cp {} build/ollama/ollama
           chmod +x build/ollama/ollama
+          ls -lh build/ollama/
 
       # ── Pre-download LLM model (zero internet after install) ──────────────
       - name: Pre-download Ollama model (llama3.2:3b)
@@ -96,8 +100,10 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path build\ollama | Out-Null
-          Invoke-WebRequest -Uri "https://ollama.com/download/ollama-windows-amd64.exe" `
-            -OutFile "build\ollama\ollama.exe"
+          $url = "https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip"
+          Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\ollama.zip"
+          Expand-Archive -Path "$env:TEMP\ollama.zip" -DestinationPath "build\ollama\" -Force
+          Get-ChildItem build\ollama\ | Select-Object Name, Length
 
       # ── Pre-download LLM model ────────────────────────────────────────────
       - name: Pre-download Ollama model (llama3.2:3b)
