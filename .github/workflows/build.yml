@@ -23,6 +23,33 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      # ── Bundle Ollama binary ───────────────────────────────────────────────
+      - name: Download Ollama binary (Mac)
+        run: |
+          mkdir -p build/ollama
+          curl -fsSL https://ollama.com/download/ollama-darwin -o build/ollama/ollama
+          chmod +x build/ollama/ollama
+
+      # ── Pre-download LLM model (zero internet after install) ──────────────
+      - name: Pre-download Ollama model (llama3.2:3b)
+        run: |
+          mkdir -p build/ollama-models
+          export OLLAMA_MODELS=$PWD/build/ollama-models
+          ./build/ollama/ollama serve &
+          OLLAMA_PID=$!
+          echo "Waiting for Ollama to start..."
+          for i in $(seq 1 20); do
+            sleep 1
+            curl -sf http://localhost:11434/ && break || true
+          done
+          ./build/ollama/ollama pull llama3.2:3b
+          kill $OLLAMA_PID 2>/dev/null || true
+
+      # ── Pre-download Whisper model ────────────────────────────────────────
+      - name: Pre-download Whisper model (whisper-base.en)
+        run: node scripts/download-whisper.js Xenova/whisper-base.en
+
+      # ── Build ─────────────────────────────────────────────────────────────
       - name: Build Mac DMG (Universal)
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
@@ -64,6 +91,38 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      # ── Bundle Ollama binary ───────────────────────────────────────────────
+      - name: Download Ollama binary (Windows)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path build\ollama | Out-Null
+          Invoke-WebRequest -Uri "https://ollama.com/download/ollama-windows-amd64.exe" `
+            -OutFile "build\ollama\ollama.exe"
+
+      # ── Pre-download LLM model ────────────────────────────────────────────
+      - name: Pre-download Ollama model (llama3.2:3b)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path build\ollama-models | Out-Null
+          $env:OLLAMA_MODELS = "$PWD\build\ollama-models"
+          $srv = Start-Process -FilePath "build\ollama\ollama.exe" `
+            -ArgumentList "serve" -PassThru -NoNewWindow
+          Write-Host "Waiting for Ollama to start..."
+          for ($i = 0; $i -lt 20; $i++) {
+            Start-Sleep -Seconds 1
+            try {
+              $r = Invoke-WebRequest -Uri "http://localhost:11434/" -UseBasicParsing -ErrorAction Stop
+              Write-Host "Ollama ready"; break
+            } catch {}
+          }
+          & "build\ollama\ollama.exe" pull llama3.2:3b
+          Stop-Process -Id $srv.Id -ErrorAction SilentlyContinue
+
+      # ── Pre-download Whisper model ────────────────────────────────────────
+      - name: Pre-download Whisper model (whisper-base.en)
+        run: node scripts/download-whisper.js Xenova/whisper-base.en
+
+      # ── Build ─────────────────────────────────────────────────────────────
       - name: Build Windows installer
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false

@@ -9,6 +9,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   ollamaCheck:     ()                 => ipcRenderer.invoke('ollama-check'),
   ollamaSummarize: (transcript, model) => ipcRenderer.invoke('ollama-summarize', { transcript, model }),
 
+  // ── Transcription (local Whisper) ────────────────────────────────
+  transcribe: (samples, model) => ipcRenderer.invoke('transcribe', { samples, model }),
+  onTranscribeProgress: (cb) => ipcRenderer.on('transcribe-progress', (_e, p) => cb(p)),
+  onOllamaPullProgress: (cb) => ipcRenderer.on('ollama-pull-progress', (_e, p) => cb(p)),
+
   // ── Export ───────────────────────────────────────────────────────
   exportDocx: (payload) => ipcRenderer.invoke('export-docx', payload),
 

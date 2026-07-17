@@ -15,6 +15,7 @@
     "build:all":     "electron-builder --mac --universal --win --x64"
   },
   "dependencies": {
+    "@xenova/transformers": "^2.17.2",
     "docx": "^8.5.0"
   },
   "devDependencies": {
@@ -36,7 +37,15 @@
       "node_modules/**/*"
     ],
     "asar": true,
-    "asarUnpack": [],
+    "asarUnpack": [
+      "node_modules/@xenova/transformers/**/*",
+      "node_modules/onnxruntime-node/**/*"
+    ],
+    "extraResources": [
+      { "from": "build/ollama/",         "to": "ollama/",         "filter": ["**/*"] },
+      { "from": "build/ollama-models/",  "to": "ollama-models/",  "filter": ["**/*"] },
+      { "from": "build/whisper-models/", "to": "whisper-models/", "filter": ["**/*"] }
+    ],
 
     "mac": {
       "category":          "public.app-category.productivity",
