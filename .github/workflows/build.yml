@@ -7,9 +7,9 @@ on:
 
 jobs:
 
-  # ── macOS — Universal DMG ──────────────────────────────────────────────────
+  # ── macOS — arm64 DMG (Apple Silicon / M1-M4) ─────────────────────────────
   build-mac:
-    name: macOS (Universal DMG)
+    name: macOS (arm64 DMG)
     runs-on: macos-latest
 
     steps:
@@ -54,11 +54,11 @@ jobs:
         run: node scripts/download-whisper.js Xenova/whisper-base.en
 
       # ── Build ─────────────────────────────────────────────────────────────
-      - name: Build Mac DMG (Universal)
+      - name: Build Mac DMG (arm64)
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
           ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
-        run: npm run build:mac
+        run: npm run build:mac-arm
 
       - name: List dist output
         run: ls -lh dist/
@@ -70,14 +70,6 @@ jobs:
           path: dist/*.dmg
           retention-days: 30
           if-no-files-found: warn
-
-      - name: Upload .app (fallback)
-        uses: actions/upload-artifact@v4
-        with:
-          name: RoomNote-Mac-App
-          path: dist/mac-universal/RoomNote.app
-          retention-days: 30
-          if-no-files-found: ignore
 
   # ── Windows — NSIS Installer ──────────────────────────────────────────────
   build-windows:

@@ -54,7 +54,7 @@
       "hardenedRuntime":   false,
       "gatekeeperAssess":  false,
       "target": [
-        { "target": "dmg", "arch": ["universal"] }
+        { "target": "dmg", "arch": ["arm64"] }
       ]
     },
     "dmg": {
