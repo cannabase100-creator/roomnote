@@ -1,0 +1,83 @@
+name: Build RoomNote
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+
+  # ── macOS — Universal DMG ──────────────────────────────────────────────────
+  build-mac:
+    name: macOS (Universal DMG)
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Mac DMG (Universal)
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+          ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
+        run: npm run build:mac
+
+      - name: List dist output
+        run: ls -lh dist/
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: RoomNote-Mac-DMG
+          path: dist/*.dmg
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Upload .app (fallback)
+        uses: actions/upload-artifact@v4
+        with:
+          name: RoomNote-Mac-App
+          path: dist/mac-universal/RoomNote.app
+          retention-days: 30
+          if-no-files-found: ignore
+
+  # ── Windows — NSIS Installer ──────────────────────────────────────────────
+  build-windows:
+    name: Windows (NSIS Installer)
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Windows installer
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+          ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
+        run: npm run build:win
+
+      - name: List dist output
+        shell: pwsh
+        run: Get-ChildItem dist\ | Format-Table Name, Length
+
+      - name: Upload NSIS installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: RoomNote-Windows-Installer
+          path: dist/*.exe
+          retention-days: 30
+          if-no-files-found: warn
