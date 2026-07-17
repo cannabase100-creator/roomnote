@@ -23,7 +23,6 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # ── Bundle Ollama binary ───────────────────────────────────────────────
       - name: Download Ollama binary (Mac)
         run: |
           mkdir -p build/ollama /tmp/ollama-extract
@@ -34,14 +33,12 @@ jobs:
           chmod +x build/ollama/ollama
           ls -lh build/ollama/
 
-      # ── Pre-download LLM model ────────────────────────────────────────────
       - name: Pre-download Ollama model (llama3.2:3b)
         run: |
           mkdir -p build/ollama-models
           export OLLAMA_MODELS=$PWD/build/ollama-models
           ./build/ollama/ollama serve &
           OLLAMA_PID=$!
-          echo "Waiting for Ollama to start..."
           for i in $(seq 1 20); do
             sleep 1
             curl -sf http://localhost:11434/ && break || true
@@ -49,11 +46,9 @@ jobs:
           ./build/ollama/ollama pull llama3.2:3b
           kill $OLLAMA_PID 2>/dev/null || true
 
-      # ── Pre-download Whisper model ────────────────────────────────────────
       - name: Pre-download Whisper model (whisper-base.en)
         run: node scripts/download-whisper.js Xenova/whisper-base.en
 
-      # ── Build ─────────────────────────────────────────────────────────────
       - name: Build Mac DMG (arm64)
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
@@ -72,8 +67,8 @@ jobs:
           if-no-files-found: warn
 
   # ── Windows — Portable ZIP ────────────────────────────────────────────────
-  # NOTE: NSIS cannot mmap archives >~2 GB (32-bit limitation) so we use the
-  #       'zip' target instead. Users extract and run RoomNote.exe directly.
+  # NSIS cannot mmap archives >~2 GB (32-bit internal limit), so we use the
+  # zip target. Models go on C: (large disk) and are junctioned into build/.
   build-windows:
     name: Windows (Portable ZIP)
     runs-on: windows-latest
@@ -89,25 +84,22 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # ── Bundle Ollama binary to C: (avoids D: workspace size limits) ──────
-      - name: Download Ollama binary (Windows)
+      - name: Download Ollama binary (Windows) to C:\
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path C:\ollama-bin | Out-Null
-          $url = "https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip"
-          Invoke-WebRequest -Uri $url -OutFile "C:\ollama.zip"
+          Invoke-WebRequest -Uri "https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip" `
+            -OutFile "C:\ollama.zip"
           Expand-Archive -Path "C:\ollama.zip" -DestinationPath "C:\ollama-bin\" -Force
           Get-ChildItem C:\ollama-bin\ | Select-Object Name, Length
 
-      # ── Pre-download LLM model to C: ─────────────────────────────────────
-      - name: Pre-download Ollama model (llama3.2:3b)
+      - name: Pre-download Ollama model (llama3.2:3b) to C:\
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path C:\ollama-models | Out-Null
           $env:OLLAMA_MODELS = "C:\ollama-models"
           $srv = Start-Process -FilePath "C:\ollama-bin\ollama.exe" `
-            -ArgumentList "serve" -PassThru -NoNewWindow `
-            -EnvironmentVariables @{ OLLAMA_MODELS = "C:\ollama-models" }
+            -ArgumentList "serve" -PassThru -NoNewWindow
           Write-Host "Waiting for Ollama to start..."
           for ($i = 0; $i -lt 20; $i++) {
             Start-Sleep -Seconds 1
@@ -116,22 +108,18 @@ jobs:
               Write-Host "Ollama ready"; break
             } catch {}
           }
-          $env:OLLAMA_MODELS = "C:\ollama-models"
           & "C:\ollama-bin\ollama.exe" pull llama3.2:3b
           Stop-Process -Id $srv.Id -ErrorAction SilentlyContinue
 
-      # ── Junction build dirs to C: so D: workspace stays small ─────────────
       - name: Link model dirs into build/
         shell: pwsh
         run: |
           New-Item -ItemType Junction -Path "build\ollama"        -Target "C:\ollama-bin"    -Force
           New-Item -ItemType Junction -Path "build\ollama-models" -Target "C:\ollama-models" -Force
 
-      # ── Pre-download Whisper model ────────────────────────────────────────
       - name: Pre-download Whisper model (whisper-base.en)
         run: node scripts/download-whisper.js Xenova/whisper-base.en
 
-      # ── Build ─────────────────────────────────────────────────────────────
       - name: Build Windows ZIP (portable)
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
