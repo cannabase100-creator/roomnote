@@ -7,9 +7,9 @@ on:
 
 jobs:
 
-  # ── macOS — arm64 DMG (Apple Silicon / M1-M4) ─────────────────────────────
+  # ── macOS — Universal DMG ──────────────────────────────────────────────────
   build-mac:
-    name: macOS (arm64 DMG)
+    name: macOS (Universal DMG)
     runs-on: macos-latest
 
     steps:
@@ -29,6 +29,7 @@ jobs:
           mkdir -p build/ollama /tmp/ollama-extract
           curl -fsSL "https://github.com/ollama/ollama/releases/latest/download/ollama-darwin.tgz" \
             | tar xz -C /tmp/ollama-extract/
+          # The tgz may extract as 'ollama' directly or inside a subdirectory
           find /tmp/ollama-extract -maxdepth 2 -name 'ollama' -type f \
             | head -1 | xargs -I{} cp {} build/ollama/ollama
           chmod +x build/ollama/ollama
@@ -71,6 +72,14 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
+      - name: Upload .app (fallback)
+        uses: actions/upload-artifact@v4
+        with:
+          name: RoomNote-Mac-App
+          path: dist/mac-universal/RoomNote.app
+          retention-days: 30
+          if-no-files-found: ignore
+
   # ── Windows — NSIS Installer ──────────────────────────────────────────────
   build-windows:
     name: Windows (NSIS Installer)
@@ -78,6 +87,18 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      # ── Free up disk space (Windows runners ship with ~14 GB, model alone is ~2 GB) ──
+      - name: Free up disk space
+        shell: pwsh
+        run: |
+          # Remove large pre-installed SDKs we don't need
+          if (Test-Path "C:\Android") { Remove-Item -Recurse -Force "C:\Android" }
+          if (Test-Path "C:\hostedtoolcache\windows\go") { Remove-Item -Recurse -Force "C:\hostedtoolcache\windows\go" }
+          if (Test-Path "C:\hostedtoolcache\windows\Ruby") { Remove-Item -Recurse -Force "C:\hostedtoolcache\windows\Ruby" }
+          if (Test-Path "C:\hostedtoolcache\windows\PyPy") { Remove-Item -Recurse -Force "C:\hostedtoolcache\windows\PyPy" }
+          if (Test-Path "C:\hostedtoolcache\windows\Python") { Remove-Item -Recurse -Force "C:\hostedtoolcache\windows\Python" }
+          Get-PSDrive C | Select-Object Used, Free
 
       - uses: actions/setup-node@v4
         with:
@@ -95,6 +116,7 @@ jobs:
           $url = "https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip"
           Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\ollama.zip"
           Expand-Archive -Path "$env:TEMP\ollama.zip" -DestinationPath "build\ollama\" -Force
+          # Verify ollama.exe is present
           Get-ChildItem build\ollama\ | Select-Object Name, Length
 
       # ── Pre-download LLM model ────────────────────────────────────────────
