@@ -7,7 +7,7 @@ on:
 
 jobs:
 
-  # ── macOS — Universal DMG ──────────────────────────────────────────────────
+  # ── macOS — arm64 DMG ─────────────────────────────────────────────────────
   build-mac:
     name: macOS (Universal DMG)
     runs-on: macos-latest
@@ -29,13 +29,12 @@ jobs:
           mkdir -p build/ollama /tmp/ollama-extract
           curl -fsSL "https://github.com/ollama/ollama/releases/latest/download/ollama-darwin.tgz" \
             | tar xz -C /tmp/ollama-extract/
-          # The tgz may extract as 'ollama' directly or inside a subdirectory
           find /tmp/ollama-extract -maxdepth 2 -name 'ollama' -type f \
             | head -1 | xargs -I{} cp {} build/ollama/ollama
           chmod +x build/ollama/ollama
           ls -lh build/ollama/
 
-      # ── Pre-download LLM model (zero internet after install) ──────────────
+      # ── Pre-download LLM model ────────────────────────────────────────────
       - name: Pre-download Ollama model (llama3.2:3b)
         run: |
           mkdir -p build/ollama-models
@@ -72,33 +71,15 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
-      - name: Upload .app (fallback)
-        uses: actions/upload-artifact@v4
-        with:
-          name: RoomNote-Mac-App
-          path: dist/mac-universal/RoomNote.app
-          retention-days: 30
-          if-no-files-found: ignore
-
-  # ── Windows — NSIS Installer ──────────────────────────────────────────────
+  # ── Windows — Portable ZIP ────────────────────────────────────────────────
+  # NOTE: NSIS cannot mmap archives >~2 GB (32-bit limitation) so we use the
+  #       'zip' target instead. Users extract and run RoomNote.exe directly.
   build-windows:
-    name: Windows (NSIS Installer)
+    name: Windows (Portable ZIP)
     runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v4
-
-      # ── Free up disk space (Windows runners ship with ~14 GB, model alone is ~2 GB) ──
-      - name: Free up disk space
-        shell: pwsh
-        run: |
-          # Remove large pre-installed SDKs we don't need
-          if (Test-Path "C:\Android") { Remove-Item -Recurse -Force "C:\Android" }
-          if (Test-Path "C:\hostedtoolcache\windows\go") { Remove-Item -Recurse -Force "C:\hostedtoolcache\windows\go" }
-          if (Test-Path "C:\hostedtoolcache\windows\Ruby") { Remove-Item -Recurse -Force "C:\hostedtoolcache\windows\Ruby" }
-          if (Test-Path "C:\hostedtoolcache\windows\PyPy") { Remove-Item -Recurse -Force "C:\hostedtoolcache\windows\PyPy" }
-          if (Test-Path "C:\hostedtoolcache\windows\Python") { Remove-Item -Recurse -Force "C:\hostedtoolcache\windows\Python" }
-          Get-PSDrive C | Select-Object Used, Free
 
       - uses: actions/setup-node@v4
         with:
@@ -108,42 +89,50 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # ── Bundle Ollama binary ───────────────────────────────────────────────
+      # ── Bundle Ollama binary to C: (avoids D: workspace size limits) ──────
       - name: Download Ollama binary (Windows)
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path build\ollama | Out-Null
+          New-Item -ItemType Directory -Force -Path C:\ollama-bin | Out-Null
           $url = "https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip"
-          Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\ollama.zip"
-          Expand-Archive -Path "$env:TEMP\ollama.zip" -DestinationPath "build\ollama\" -Force
-          # Verify ollama.exe is present
-          Get-ChildItem build\ollama\ | Select-Object Name, Length
+          Invoke-WebRequest -Uri $url -OutFile "C:\ollama.zip"
+          Expand-Archive -Path "C:\ollama.zip" -DestinationPath "C:\ollama-bin\" -Force
+          Get-ChildItem C:\ollama-bin\ | Select-Object Name, Length
 
-      # ── Pre-download LLM model ────────────────────────────────────────────
+      # ── Pre-download LLM model to C: ─────────────────────────────────────
       - name: Pre-download Ollama model (llama3.2:3b)
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path build\ollama-models | Out-Null
-          $env:OLLAMA_MODELS = "$PWD\build\ollama-models"
-          $srv = Start-Process -FilePath "build\ollama\ollama.exe" `
-            -ArgumentList "serve" -PassThru -NoNewWindow
+          New-Item -ItemType Directory -Force -Path C:\ollama-models | Out-Null
+          $env:OLLAMA_MODELS = "C:\ollama-models"
+          $srv = Start-Process -FilePath "C:\ollama-bin\ollama.exe" `
+            -ArgumentList "serve" -PassThru -NoNewWindow `
+            -EnvironmentVariables @{ OLLAMA_MODELS = "C:\ollama-models" }
           Write-Host "Waiting for Ollama to start..."
           for ($i = 0; $i -lt 20; $i++) {
             Start-Sleep -Seconds 1
             try {
-              $r = Invoke-WebRequest -Uri "http://localhost:11434/" -UseBasicParsing -ErrorAction Stop
+              Invoke-WebRequest -Uri "http://localhost:11434/" -UseBasicParsing -ErrorAction Stop | Out-Null
               Write-Host "Ollama ready"; break
             } catch {}
           }
-          & "build\ollama\ollama.exe" pull llama3.2:3b
+          $env:OLLAMA_MODELS = "C:\ollama-models"
+          & "C:\ollama-bin\ollama.exe" pull llama3.2:3b
           Stop-Process -Id $srv.Id -ErrorAction SilentlyContinue
+
+      # ── Junction build dirs to C: so D: workspace stays small ─────────────
+      - name: Link model dirs into build/
+        shell: pwsh
+        run: |
+          New-Item -ItemType Junction -Path "build\ollama"        -Target "C:\ollama-bin"    -Force
+          New-Item -ItemType Junction -Path "build\ollama-models" -Target "C:\ollama-models" -Force
 
       # ── Pre-download Whisper model ────────────────────────────────────────
       - name: Pre-download Whisper model (whisper-base.en)
         run: node scripts/download-whisper.js Xenova/whisper-base.en
 
       # ── Build ─────────────────────────────────────────────────────────────
-      - name: Build Windows installer
+      - name: Build Windows ZIP (portable)
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
           ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
@@ -153,10 +142,10 @@ jobs:
         shell: pwsh
         run: Get-ChildItem dist\ | Format-Table Name, Length
 
-      - name: Upload NSIS installer
+      - name: Upload Windows ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: RoomNote-Windows-Installer
-          path: dist/*.exe
+          name: RoomNote-Windows-ZIP
+          path: dist/*.zip
           retention-days: 30
           if-no-files-found: warn

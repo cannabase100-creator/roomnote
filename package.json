@@ -69,16 +69,8 @@
     "win": {
       "icon": "build/icon.ico",
       "target": [
-        { "target": "nsis", "arch": ["x64"] }
+        { "target": "zip", "arch": ["x64"] }
       ]
-    },
-    "nsis": {
-      "oneClick":                 true,
-      "perMachine":               false,
-      "allowToChangeInstallationDirectory": false,
-      "createDesktopShortcut":    true,
-      "createStartMenuShortcut":  true,
-      "deleteAppDataOnUninstall": false
     }
   }
 }
